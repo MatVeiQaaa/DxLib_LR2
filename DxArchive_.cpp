@@ -1,0 +1,6270 @@
+// -------------------------------------------------------------------------------
+// 
+// 		?c?w?ÅÒ?C?u?ÅÒ??		?A?[?J?C?u?Åò???v???O?ÅÒ??
+// 
+// 				Ver 3.19f
+// 
+// -------------------------------------------------------------------------------
+
+
+// ?c?w?ÅÒ?C?u?ÅÒ?????????pÅf??`
+#define __DX_MAKE
+
+// ?C?Åg?N???[?h-------------------------------------------------------------------
+#include "DxArchive_.h"
+#include "DxBaseFunc.h"
+#include "DxMemory.h"
+#include "DxFile.h"
+#include "DxFont.h"
+#include "DxLog.h"
+#include "DxChar.h"
+#include "DxThread.h"
+#include "DxSystem.h"
+#include <stdio.h>
+
+
+#ifndef DX_NON_NAMESPACE
+
+namespace DxLib
+{
+
+#endif // DX_NON_NAMESPACE
+
+#ifndef DX_NON_DXA
+
+// ?}?N??Åf??` --------------------------------------------------------------------
+
+#define DXARCD						DX_ArchiveDirData
+//#define CHECKMULTIBYTECHAR(CP)		(( (unsigned char)*(CP) >= 0x81 && (unsigned char)*(CP) <= 0x9F ) || ( (unsigned char)*(CP) >= 0xE0 && (unsigned char)*(CP) <= 0xFC ))	// TRUE:?Q?o?C?g?Å˜??  FALSE:?P?o?C?g?Å˜??
+#define CHARUP(C)					( (C) >= 'a' && (C) <= 'z' ? (C) - 'a' + 'A' : (C))
+
+#define DXARC_ID_AND_VERSION_SIZE	(sizeof( WORD ) * 2)
+
+#define DXARC_HEAD_VER3_SIZE		(24)
+#define DXARC_HEAD_VER4_SIZE		(28)
+#define DXARC_HEAD_VER6_SIZE		(48)
+
+#define DXARC_FILEHEAD_VER1_SIZE	(40)			// Ver0x0001 ?? DXARC_FILEHEAD ?\Åe?Åe????T?C?Y
+#define DXARC_FILEHEAD_VER2_SIZE	(44)			// Ver0x0002 ?? DXARC_FILEHEAD ?\Åe?Åe????T?C?Y
+#define DXARC_FILEHEAD_VER6_SIZE	(64)			// Ver0x0006 ?? DXARC_FILEHEAD ?\Åe?Åe????T?C?Y
+
+#ifdef __USE_ULL__
+#define NONE_PAL		(0xffffffffffffffffULL)
+#else
+#define NONE_PAL		(0xffffffffffffffff)
+#endif
+
+// ?\Åe?Åe?Åf??` --------------------------------------------------------------------
+
+// DXA_DIR_FindFirst Åg??????????g?p?????\Åe?Åe?
+struct DXA_DIR_FINDDATA
+{
+	int							UseArchiveFlag;					// ?A?[?J?C?u?t?@?C?????g?p???????????t?ÅÒ?O
+	int							UseArchiveIndex;				// ?A?[?J?C?u???g?p???????????Åˆ?A?g?p?????????A?[?J?C?u?t?@?C???f?[?^???C?Åg?f?b?N?X
+	DWORD_PTR					FindHandle;						// ?t?@?C???????p?n?Åg?h??
+} ;
+
+// DXA_FindFirst Åg??????????g?p?????\Åe?Åe?
+struct DXA_FINDDATA
+{
+	DXARC						*Container;						// ????Åe??????c?w?`?t?@?C??
+	BYTE						SearchStr[ FILEPATH_MAX ] ;		// ?????Å˜????
+	union
+	{
+		DXARC_DIRECTORY			*Directory;						// ????Åe??????f?B???N?g??
+		DXARC_DIRECTORY_VER5	*DirectoryV5;					// ????Åe??????f?B???N?g??(Ver5??ÅeO?p)
+	};
+	DWORD						ObjectCount;					// ????Ågn???f?B???N?g??Åg??I?u?W?F?N?g???C?Åg?f?b?N?X
+} ;
+
+// Åg??ÅhÅe??????Åh???? --------------------------------------------------------------
+
+BYTE Ascii_DotStr[ 2 ]       = { '.',       0 } ;
+BYTE Ascii_DoubleDotStr[ 3 ] = { '.',  '.', 0 } ;
+BYTE Ascii_EnStr[ 2 ]        = { '\\',      0 } ;
+BYTE Ascii_SlashStr[ 2 ]     = { '/',       0 } ;
+
+// ?A?[?J?C?u???f?B???N?g???????Åò?????Å~???f?[?^
+DXARC_DIR DX_ArchiveDirData ;
+
+// ???Åh?v???g?^?C?v????-----------------------------------------------------------
+
+static DXARC_FILEHEAD_VER5 *DXA_GetFileHeaderV5(	DXARC *DXA, const BYTE *FilePath ) ;													// ?t?@?C??????????Åg???
+static DXARC_FILEHEAD      *DXA_GetFileHeader(		DXARC *DXA, const BYTE *FilePath, DXARC_DIRECTORY **DirectoryP ) ;						// ?t?@?C??????????Åg???
+static int		DXA_ConvSearchData(					DXARC *DXA, DXARC_SEARCHDATA *Dest, const BYTE *Src, int *Length ) ;					// ?Å˜???????????p???f?[?^??????( ?k???Å˜???? \ ???????????I?? )
+static int		DXA_ChangeCurrentDirectoryFast(		DXARC *DXA, DXARC_SEARCHDATA *SearchData ) ;											// ?A?[?J?C?uÅg????f?B???N?g???p?X?????X????( 0:???ÅÄ  -1:??Åhs )
+static int		DXA_ChangeCurrentDirectoryBase(		DXARC *DXA, const BYTE *DirectoryPath, bool ErrorIsDirectoryReset, DXARC_SEARCHDATA *LastSearchData = NULL ) ;		// ?A?[?J?C?uÅg????f?B???N?g???p?X?????X????( 0:???ÅÄ  -1:??Åhs )
+static size_t	DXA_CreateKeyV2FileString(			DXARC *DXA, DXARC_DIRECTORY *Directory, DXARC_FILEHEAD *FileHead, BYTE *FileString ) ;	// ?J???Åg?g?f?B???N?g?????????wÅf????t?@?C???????o?[?W?Åˆ?Åg?Q?p???Å˜???????????????A????Åfl???Å˜??????Åf???( ÅfP???FByte )( FileString ?? DXA_KEYV2_STRING_MAXLENGTH ??Åf??????K?v )
+//static int	DXA_Decode(							void *Src, void *Dest ) ;																// ?f?[?^??ÅÒ?Åg?????( ????Åfl:ÅÒ?Åg??????f?[?^?T?C?Y )
+static void		DXA_KeyCreate(						const char *Source, unsigned char *Key ) ;												// ???Å˜??????????
+static void		DXA_KeyV2Create(					const char *Source, unsigned char *Key, size_t KeyBytes = 0 ) ;							// ???o?[?W?Åˆ?Åg?Q??????
+static void		DXA_KeyConv(						void *Data, LONGLONG  SizeLL, LONGLONG  PositionLL,  unsigned char *Key ) ;				// ???Å˜???????g?p???? Xor ÅÒÅÒ?Z( Key ???K?? DXA_KEYSTR_LENGTH ??Åf????????????????????? )
+static void		DXA_KeyConvFileRead(				void *Data, ULONGLONG Size,   DWORD_PTR FilePointer, unsigned char *Key, LONGLONG Position = -1 ) ;	// ?t?@?C??????Åg??????????f?[?^?????Å˜???????g?p???? Xor ÅÒÅÒ?Z???????Åh( Key ???K?? DXA_KEYSTR_LENGTH ??Åf????????????????????? )
+static void		DXA_KeyV2Conv(						void *Data, LONGLONG  SizeLL, LONGLONG  PositionLL,  unsigned char *Key ) ;				// ???o?[?W?Åˆ?Åg?Q?Å˜???????g?p???? Xor ÅÒÅÒ?Z( Key ???K?? DXA_KEYV2_LENGTH ??Åf????????????????????? )
+static void		DXA_KeyV2ConvFileRead(				void *Data, ULONGLONG Size,   DWORD_PTR FilePointer, unsigned char *Key, LONGLONG Position ) ;		// ?t?@?C??????Åg??????????f?[?^?????Å˜???????g?p???? Xor ÅÒÅÒ?Z???????Åh( Key ???K?? DXA_KEYV2_LENGTH ??Åf????????????????????? )
+static int		DXA_FindProcess(					DXA_FINDDATA *FindData, FILEINFOW *FileInfo );											// ??????ÅgK?Åˆ?????I?u?W?F?N?g??????????(????Åe????? ObjectCount ???C?Åg?f?b?N?X?????????Å}??????)(????Åfl -1:?G?ÅÒ?[ 0:???ÅÄ)
+
+static int		DXA_DIR_OpenArchive(				const wchar_t *FilePath, void *FileImage = NULL, int FileSize = -1, int FileImageCopyFlag = FALSE, int FileImageReadOnly = FALSE, int ArchiveIndex = -1, int OnMemory = FALSE, int ASyncThread = FALSE ) ;	// ?A?[?J?C?u?t?@?C?????J??
+static int		DXA_DIR_GetArchive(					const wchar_t *FilePath, void *FileImage = NULL ) ;										// ?????J???????????A?[?J?C?u???n?Åg?h??????Åg?????( ????Åfl: -1=???????? 0????:?n?Åg?h?? )
+static int		DXA_DIR_CloseArchive(				int ArchiveHandle ) ;																	// ?A?[?J?C?u?t?@?C???????Å˜??
+static void		DXA_DIR_CloseWaitArchive(			void ) ;																				// ?g?p??????????Åe??????????A?[?J?C?u?t?@?C????ÅeS?????Å˜??
+static int		DXA_DIR_ConvertFullPath(			const wchar_t *Src, wchar_t *Dest, size_t BufferBytes, int CharUp = 1 ) ;				// ÅeS????ÅÒp?????Å˜????Åe??Å˜?????????????A?t???p?X??????????
+static int		DXA_DIR_AnalysisFileNameAndDirPath( DXARC *DXA, const BYTE *Src, BYTE *FileName = 0, size_t FileNameBytes = 0, BYTE *DirPath = 0, size_t DirPathBytes = 0 ) ;					// ?t?@?C?????????????????????????????????????p?XÅfÅı?????t?@?C???????f?B???N?g???p?X???????????B?t???p?X???????K?v???????A?t?@?C?????????????????ADirPath ???IÅf[?? ?? ?}?[?N???t??????
+static int		DXA_DIR_FileNameCmp(				DXARC *DXA, const BYTE *Src, const BYTE *CmpStr );										// CmpStr ???????? Src ??ÅgK?Åˆ??????????????Åf??Å~??( 0:ÅgK?Åˆ????  -1:ÅgK?Åˆ?????? )
+static int		DXA_DIR_OpenTest(					const wchar_t *FilePath, int *ArchiveIndex, BYTE *ArchiveFilePath, size_t BufferBytes ) ;	// ?A?[?J?C?u?t?@?C?????t?H???_?????Åò?????t?@?C?????J????????????Åg???( -1:?A?[?J?C?u????????ÅeÅ˜????????????  0:ÅeÅ˜?????? )
+
+static int		DXA_DirectoryKeyConv(				DXARC *DXA, DXARC_DIRECTORY *Dir, char *KeyV2StringBuffer ) ;							// ?wÅf????f?B???N?g???f?[?^?????ÅıÅÒ???ÅÒ???????( ??????????????Åg????????????Åˆ?p )
+static int		DXA_DirectoryKeyConvV5(				DXARC *DXA, DXARC_DIRECTORY_VER5 *Dir ) ;												// ?wÅf????f?B???N?g???f?[?^?????ÅıÅÒ???ÅÒ???????( ??????????????Åg????????????Åˆ?p )
+
+
+
+// ?v???O?ÅÒ?? --------------------------------------------------------------------
+
+// ?t?@?C??????????Åg???
+static DXARC_FILEHEAD_VER5 *DXA_GetFileHeaderV5( DXARC *DXA, const BYTE *FilePath )
+{
+	DXARC_DIRECTORY_VER5 *OldDir ;
+	DXARC_FILEHEAD_VER5 *FileH ;
+	DWORD FileHeadSize ;
+	BYTE *NameData ;
+	int i, j, k, Num ;
+	DXARC_SEARCHDATA SearchData ;
+
+	// ?????f?B???N?g??????ÅeÅ˜?????ÅN??
+	OldDir = DXA->CurrentDirectoryV5 ;
+
+	// ?t?@?C???p?X?? \ or / ?????????????????Åˆ?A?f?B???N?g?????X???s??
+	if( CL_strchr( DXA->CharCodeFormat, ( const char * )FilePath, '\\' ) != NULL ||
+		CL_strchr( DXA->CharCodeFormat, ( const char * )FilePath, '/'  ) != NULL )
+	{
+		// ?J???Åg?g?f?B???N?g??????ÅgI???t?@?C?????????f?B???N?g???????X????
+		if( DXA_ChangeCurrentDirectoryBase( DXA, FilePath, false, &SearchData ) >= 0 )
+		{
+			// ?G?ÅÒ?[???N?????????????Åˆ???t?@?C???????f?B???N?g?????????Å}?????????????G?ÅÒ?[
+			goto ERR ;
+		}
+	}
+	else
+	{
+		// ?t?@?C???????????p?f?[?^??????????
+		DXA_ConvSearchData( DXA, &SearchData, FilePath, NULL ) ;
+	}
+
+	// Åg??????t?@?C????ÅfT??
+	FileHeadSize = ( DWORD )( DXA->HeadV5.Version >= 0x0002 ? DXARC_FILEHEAD_VER2_SIZE : DXARC_FILEHEAD_VER1_SIZE ) ;
+	FileH        = ( DXARC_FILEHEAD_VER5 * )( DXA->Table.FileTable + DXA->CurrentDirectoryV5->FileHeadAddress ) ;
+	Num          = ( int )DXA->CurrentDirectoryV5->FileHeadNum ;
+	for( i = 0 ; i < Num ; i ++, FileH = (DXARC_FILEHEAD_VER5 *)( (BYTE *)FileH + FileHeadSize ) )
+	{
+		// ?f?B???N?g???`?F?b?N
+		if( ( FileH->Attributes & FILE_ATTRIBUTE_DIRECTORY ) != 0 )
+		{
+			continue ;
+		}
+
+		// ?Å˜?????Åh???p???e?B?`?F?b?N
+		NameData = DXA->Table.NameTable + FileH->NameAddress ;
+		if( SearchData.PackNum != ( ( WORD * )NameData )[ 0 ] ||
+			SearchData.Parity  != ( ( WORD * )NameData )[ 1 ] )
+		{
+			continue ;
+		}
+
+		// ?Å˜?????`?F?b?N
+		NameData += 4 ;
+		for( j = 0, k = 0 ; j < SearchData.PackNum ; j ++, k += 4 )
+		{
+			if( *( ( DWORD * )&SearchData.FileName[ k ]) != *( ( DWORD * )&NameData[ k ] ) )
+			{
+				break ;
+			}
+		}
+
+		// ÅgK?Åˆ?????t?@?C?????????????Å}?Å}???I??
+		if( SearchData.PackNum == j )
+		{
+			break ;
+		}
+	}
+
+	// ???????????G?ÅÒ?[
+	if( i == Num )
+	{
+		goto ERR ;
+	}
+
+	// ?f?B???N?g????????????
+	DXA->CurrentDirectoryV5 = OldDir ;
+	
+	// ??ÅgI???t?@?C?????A?h???X??????
+	return FileH ;
+	
+ERR :
+	// ?f?B???N?g????????????
+	DXA->CurrentDirectoryV5 = OldDir ;
+	
+	// ?G?ÅÒ?[?I??
+	return NULL ;
+}
+
+// ?t?@?C??????????Åg???
+static DXARC_FILEHEAD *DXA_GetFileHeader( DXARC *DXA, const BYTE *FilePath, DXARC_DIRECTORY **DirectoryP )
+{
+	DXARC_DIRECTORY *OldDir ;
+	DXARC_FILEHEAD *FileH ;
+	DWORD FileHeadSize ;
+	BYTE *NameData ;
+	int i, j, k, Num ;
+	DXARC_SEARCHDATA SearchData ;
+
+	// ?????f?B???N?g??????ÅeÅ˜?????ÅN??
+	OldDir = DXA->CurrentDirectory ;
+
+	// ?t?@?C???p?X?? \ or / ?????????????????Åˆ?A?f?B???N?g?????X???s??
+	if( CL_strchr( DXA->CharCodeFormat, ( const char * )FilePath, '\\' ) != NULL ||
+		CL_strchr( DXA->CharCodeFormat, ( const char * )FilePath, '/'  ) != NULL )
+	{
+		// ?J???Åg?g?f?B???N?g??????ÅgI???t?@?C?????????f?B???N?g???????X????
+		if( DXA_ChangeCurrentDirectoryBase( DXA, FilePath, false, &SearchData ) >= 0 )
+		{
+			// ?G?ÅÒ?[???N?????????????Åˆ???t?@?C???????f?B???N?g?????????Å}?????????????G?ÅÒ?[
+			goto ERR ;
+		}
+	}
+	else
+	{
+		// ?t?@?C???????????p?f?[?^??????????
+		DXA_ConvSearchData( DXA, &SearchData, FilePath, NULL ) ;
+	}
+
+	// Åg??????t?@?C????ÅfT??
+	FileHeadSize = DXARC_FILEHEAD_VER6_SIZE ;
+	FileH        = ( DXARC_FILEHEAD * )( DXA->Table.FileTable + DXA->CurrentDirectory->FileHeadAddress ) ;
+	Num          = ( int )DXA->CurrentDirectory->FileHeadNum ;
+	for( i = 0 ; i < Num ; i ++, FileH = (DXARC_FILEHEAD *)( (BYTE *)FileH + FileHeadSize ) )
+	{
+		// ?f?B???N?g???`?F?b?N
+		if( ( FileH->Attributes & FILE_ATTRIBUTE_DIRECTORY ) != 0 )
+		{
+			continue ;
+		}
+
+		// ?Å˜?????Åh???p???e?B?`?F?b?N
+		NameData = DXA->Table.NameTable + FileH->NameAddress ;
+		if( SearchData.PackNum != ( ( WORD * )NameData )[ 0 ] ||
+			SearchData.Parity  != ( ( WORD * )NameData )[ 1 ] )
+		{
+			continue ;
+		}
+
+		// ?Å˜?????`?F?b?N
+		NameData += 4 ;
+		for( j = 0, k = 0 ; j < SearchData.PackNum ; j ++, k += 4 )
+		{
+			if( *( ( DWORD * )&SearchData.FileName[ k ] ) != *( ( DWORD * )&NameData[ k ] ) )
+			{
+				break ;
+			}
+		}
+
+		// ÅgK?Åˆ?????t?@?C?????????????Å}?Å}???I??
+		if( SearchData.PackNum == j )
+		{
+			break ;
+		}
+	}
+
+	// ???????????G?ÅÒ?[
+	if( i == Num )
+	{
+		goto ERR ;
+	}
+
+	// ?f?B???N?g??????Åg??????wÅf????????????Åˆ??Åe?Åg?
+	if( DirectoryP != NULL )
+	{
+		*DirectoryP = DXA->CurrentDirectory ;
+	}
+	
+	// ?f?B???N?g????????????
+	DXA->CurrentDirectory = OldDir ;
+	
+	// ??ÅgI???t?@?C?????A?h???X??????
+	return FileH ;
+	
+ERR :
+	// ?f?B???N?g????????????
+	DXA->CurrentDirectory = OldDir ;
+	
+	// ?G?ÅÒ?[?I??
+	return NULL ;
+}
+
+
+// ?Å˜???????????p???f?[?^??????( ?k???Å˜???? \ ???????????I?? )
+static int DXA_ConvSearchData( DXARC *DXA, DXARC_SEARCHDATA *Dest, const BYTE *Src, int *Length )
+{
+	int i, j ;
+	int StringLength ;
+	WORD  ParityData ;
+	DWORD CharCode ;
+	int CharBytes ;
+
+	ParityData = 0 ;
+	i          = 0 ;
+	for(;;)
+	{
+		CharCode = GetCharCode( ( const char * )&Src[ i ], DXA->CharCodeFormat, &CharBytes ) ;
+		if( CharCode == '\0' || CharCode == '\\' || CharCode == '/' )
+		{
+			break ;
+		}
+
+		// ???Å˜???????Åˆ??Åe??Å˜????????
+		if( CharCode >= 'a' && CharCode <= 'z' )
+		{
+			CharCode = CharCode - 'a' + 'A' ;
+			PutCharCode( CharCode, DXA->CharCodeFormat, ( char * )&Dest->FileName[ i ], sizeof( Dest->FileName ) - i ) ;
+
+			switch( CharBytes )
+			{
+			case 1 :
+				ParityData += Dest->FileName[ i ] ;
+				break ;
+
+			case 2 :
+				ParityData += Dest->FileName[ i ] + Dest->FileName[ i + 1 ] ;
+				break ;
+
+			case 4 :
+				ParityData += Dest->FileName[ i ] + Dest->FileName[ i + 1 ] + Dest->FileName[ i + 2 ] + Dest->FileName[ i + 3 ] ;
+				break ;
+
+			default :
+				for( j = 0 ; j < CharBytes ; j ++ )
+				{
+					ParityData += Dest->FileName[ i + j ] ;
+				}
+				break ;
+			}
+		}
+		else
+		{
+			switch( CharBytes )
+			{
+			case 1 :
+				Dest->FileName[ i ] = Src[ i ] ;
+				ParityData += Src[ i ] ;
+				break ;
+
+			case 2 :
+				*( ( WORD * )&Dest->FileName[ i ] ) = *( ( WORD * )&Src[ i ] ) ;
+				ParityData += Src[ i ] + Src[ i + 1 ] ;
+				break ;
+
+			case 4 :
+				*( ( DWORD * )&Dest->FileName[ i ] ) = *( ( DWORD * )&Src[ i ] ) ;
+				ParityData += Src[ i ] + Src[ i + 1 ] + Src[ i + 2 ] + Src[ i + 3 ] ;
+				break ;
+
+			default :
+				for( j = 0 ; j < CharBytes ; j ++ )
+				{
+					Dest->FileName[ i + j ] = Src[ i + j ] ;
+					ParityData += Src[ i + j ] ;
+				}
+				break ;
+			}
+		}
+
+		i += CharBytes ;
+	}
+
+	// ?Å˜??????Åf???????ÅeÅ˜
+	if( Length != NULL )
+	{
+		*Length = i ;
+	}
+
+	// ?S??Åh{?Åh????Åfu?????O??Åe?Åg?
+	StringLength = ( ( i + 1 ) + 3 ) / 4 * 4 ;
+	_MEMSET( &Dest->FileName[ i ], 0, ( size_t )( StringLength - i ) ) ;
+
+	// ?p???e?B?f?[?^????ÅeÅ˜
+	Dest->Parity = ParityData ;
+
+	// ?p?b?N?f?[?^?Åh????ÅeÅ˜
+	Dest->PackNum = ( WORD )( StringLength / 4 ) ;
+
+	// ?????I??
+	return 0 ;
+}
+
+
+
+
+
+
+// ???Å˜??????????
+void DXA_KeyCreate( const char *Source, unsigned char *Key )
+{
+	size_t Len ;
+
+	if( Source == NULL )
+	{
+		_MEMSET( Key, 0xaa, DXA_KEYSTR_LENGTH ) ;
+	}
+	else
+	{
+		Len = CL_strlen( DX_CHARCODEFORMAT_ASCII, Source ) ;
+		if( Len > DXA_KEYSTR_LENGTH )
+		{
+			_MEMCPY( Key, Source, DXA_KEYSTR_LENGTH ) ;
+		}
+		else
+		{
+			// ???Å˜?????? DXA_KEYSTR_LENGTH ????ÅfZ???????????[?v????
+			size_t i ;
+
+			for( i = 0 ; i + Len <= DXA_KEYSTR_LENGTH ; i += Len )
+			{
+				_MEMCPY( Key + i, Source, Len ) ;
+			}
+
+			if( i < DXA_KEYSTR_LENGTH )
+			{
+				_MEMCPY( Key + i, Source, DXA_KEYSTR_LENGTH - i ) ;
+			}
+		}
+	}
+
+	Key[ 0] = ( unsigned char )( ~Key[0] ) ;
+	Key[ 1] = ( unsigned char )( ( Key[1] >> 4 ) | ( Key[1] << 4 ) ) ;
+	Key[ 2] = ( unsigned char )( Key[2] ^ 0x8a ) ;
+	Key[ 3] = ( unsigned char )( ~( ( Key[3] >> 4 ) | ( Key[3] << 4 ) ) ) ;
+	Key[ 4] = ( unsigned char )( ~Key[4] ) ;
+	Key[ 5] = ( unsigned char )( Key[5] ^ 0xac ) ;
+	Key[ 6] = ( unsigned char )( ~Key[6] ) ;
+	Key[ 7] = ( unsigned char )( ~( ( Key[7] >> 3 ) | ( Key[7] << 5 ) ) ) ;
+	Key[ 8] = ( unsigned char )( ( Key[8] >> 5 ) | ( Key[8] << 3 ) ) ;
+	Key[ 9] = ( unsigned char )( Key[9] ^ 0x7f ) ;
+	Key[10] = ( unsigned char )( ( ( Key[10] >> 4 ) | ( Key[10] << 4 ) ) ^ 0xd6 ) ;
+	Key[11] = ( unsigned char )( Key[11] ^ 0xcc ) ;
+}
+
+// ???o?[?W?Åˆ?Åg?Q??????
+static void DXA_KeyV2Create( const char *Source, unsigned char *Key, size_t KeyBytes )
+{
+	if( Source == NULL )
+	{
+		static BYTE DefaultKeyString[ 5 ] = { 0x44, 0x58, 0x41, 0x52, 0x43 }; // "DXARC"
+		HashSha256( DefaultKeyString, sizeof( DefaultKeyString ), Key ) ;
+	}
+	else
+	{
+		HashSha256( Source, KeyBytes == 0 ? CL_strlen( DX_CHARCODEFORMAT_ASCII, Source ) : KeyBytes, Key ) ;
+	}
+}
+
+// ???Å˜???????g?p???? Xor ÅÒÅÒ?Z( Key ???K?? DXA_KEYSTR_LENGTH ??Åf????????????????????? )
+void DXA_KeyConv( void *Data, LONGLONG SizeLL, LONGLONG PositionLL, unsigned char *Key )
+{
+	int Position ;
+
+	Position = ( int )( PositionLL % DXA_KEYSTR_LENGTH ) ;
+
+	if( SizeLL <= 0xffffffff )
+	{
+		DWORD SizeT ;
+		SizeT = ( DWORD )SizeLL ;
+
+#ifndef DX_NON_INLINE_ASM
+		DWORD DataT ;
+		DataT = (DWORD)Data ;
+
+		__asm
+		{
+			MOV EDI, DataT
+			MOV ESI, Key
+
+			MOV EAX, SizeT
+			CMP EAX, DXA_KEYSTR_LENGTH
+			JB LABEL2
+
+
+			MOV EAX, Position
+			CMP EAX, 0
+			JE LABEL1
+
+
+			MOV EDX, SizeT
+	LOOP1:
+			MOV BL, [ESI+EAX]
+			XOR [EDI], BL
+			INC EAX
+			INC EDI
+			DEC EDX
+			CMP EAX, DXA_KEYSTR_LENGTH
+			JB LOOP1
+			XOR ECX, ECX
+			MOV Position, ECX
+
+			MOV SizeT, EDX
+			CMP EDX, DXA_KEYSTR_LENGTH
+			JB LABEL2
+
+
+	LABEL1:
+			MOV EAX, SizeT
+			XOR EDX, EDX
+			MOV ECX, DXA_KEYSTR_LENGTH
+			DIV ECX
+			MOV SizeT, EDX
+			MOV ECX, EAX
+
+			MOV EAX, [ESI]
+			MOV EBX, [ESI+4]
+			MOV EDX, [ESI+8]
+	LOOP2:
+			XOR [EDI],    EAX
+			XOR [EDI+4],  EBX
+			XOR [EDI+8],  EDX
+			ADD EDI, DXA_KEYSTR_LENGTH
+			DEC ECX
+			JNZ LOOP2
+
+
+	LABEL2:
+			MOV EDX, SizeT
+			CMP EDX, 0
+			JE LABEL3
+
+
+			MOV EAX, Position
+	LOOP3:
+			MOV BL, [ESI+EAX]
+			XOR [EDI], BL
+			INC EAX
+			CMP EAX, DXA_KEYSTR_LENGTH
+			JNE LABEL4
+			XOR EAX, EAX
+	LABEL4:
+			INC EDI
+			DEC EDX
+			JNZ LOOP3
+	LABEL3:
+		} ;
+
+#else // DX_NON_INLINE_ASM
+
+		BYTE *DataBP ;
+		BYTE *KeyBP ;
+
+		DataBP = ( BYTE * )Data ;
+		KeyBP = ( BYTE * )Key ;
+		if( SizeT >= DXA_KEYSTR_LENGTH )
+		{
+			if( Position != 0 )
+			{
+				do
+				{
+					*DataBP ^= KeyBP[ Position ] ;
+					Position ++ ;
+					DataBP ++ ;
+					SizeT -- ;
+				}while( Position < DXA_KEYSTR_LENGTH ) ;
+				Position = 0 ;
+			}
+
+			if( SizeT >= DXA_KEYSTR_LENGTH )
+			{
+				DWORD SetNum ;
+				DWORD Key1, Key2, Key3 ;
+
+				SetNum = SizeT / DXA_KEYSTR_LENGTH ;
+				SizeT -= SetNum * DXA_KEYSTR_LENGTH ;
+				Key1 = ( ( DWORD * )KeyBP )[ 0 ] ;
+				Key2 = ( ( DWORD * )KeyBP )[ 1 ] ;
+				Key3 = ( ( DWORD * )KeyBP )[ 2 ] ;
+
+				do
+				{
+					( ( DWORD * )DataBP )[ 0 ] ^= Key1 ;
+					( ( DWORD * )DataBP )[ 1 ] ^= Key2 ;
+					( ( DWORD * )DataBP )[ 2 ] ^= Key3 ;
+					DataBP += DXA_KEYSTR_LENGTH ;
+					SetNum -- ;
+				}while( SetNum > 0 ) ;
+			}
+		}
+
+		if( SizeT > 0 )
+		{
+			do
+			{
+				*DataBP ^= KeyBP[ Position ] ;
+				DataBP ++ ;
+				Position ++ ;
+				if( Position == DXA_KEYSTR_LENGTH )
+					Position = 0 ;
+				SizeT -- ;
+			}while( SizeT > 0 ) ;
+		}
+#endif // DX_NON_INLINE_ASM
+	}
+	else
+	{
+		BYTE *DataBP ;
+		BYTE *KeyBP ;
+
+		DataBP = ( BYTE * )Data ;
+		KeyBP = ( BYTE * )Key ;
+		if( SizeLL >= DXA_KEYSTR_LENGTH )
+		{
+			if( Position != 0 )
+			{
+				do
+				{
+					*DataBP ^= KeyBP[ Position ] ;
+					Position ++ ;
+					DataBP ++ ;
+					SizeLL -- ;
+				}while( Position < DXA_KEYSTR_LENGTH ) ;
+				Position = 0 ;
+			}
+
+			if( SizeLL >= DXA_KEYSTR_LENGTH )
+			{
+				DWORD SetNum ;
+				DWORD Key1, Key2, Key3 ;
+
+				SetNum = ( DWORD )( SizeLL / DXA_KEYSTR_LENGTH ) ;
+				SizeLL -= SetNum * DXA_KEYSTR_LENGTH ;
+				Key1 = ( ( DWORD * )KeyBP )[ 0 ] ;
+				Key2 = ( ( DWORD * )KeyBP )[ 1 ] ;
+				Key3 = ( ( DWORD * )KeyBP )[ 2 ] ;
+
+				do
+				{
+					( ( DWORD * )DataBP )[ 0 ] ^= Key1 ;
+					( ( DWORD * )DataBP )[ 1 ] ^= Key2 ;
+					( ( DWORD * )DataBP )[ 2 ] ^= Key3 ;
+					DataBP += DXA_KEYSTR_LENGTH ;
+					SetNum -- ;
+				}while( SetNum > 0 ) ;
+			}
+		}
+
+		if( SizeLL > 0 )
+		{
+			do
+			{
+				*DataBP ^= KeyBP[ Position ] ;
+				DataBP ++ ;
+				Position ++ ;
+				if( Position == DXA_KEYSTR_LENGTH )
+					Position = 0 ;
+				SizeLL -- ;
+			}while( SizeLL > 0 ) ;
+		}
+	}
+}
+
+// ???o?[?W?Åˆ?Åg?Q?Å˜???????g?p???? Xor ÅÒÅÒ?Z( Key ???K?? DXA_KEYV2_LENGTH ??Åf????????????????????? )
+static void DXA_KeyV2Conv( void *Data, LONGLONG  SizeLL, LONGLONG  PositionLL,  unsigned char *Key )
+{
+	int Position ;
+
+	Position = ( int )( PositionLL % DXA_KEYV2_LENGTH ) ;
+
+	if( SizeLL <= 0xffffffff )
+	{
+		DWORD SizeT ;
+		SizeT = ( DWORD )SizeLL ;
+
+		BYTE *DataBP ;
+		BYTE *KeyBP ;
+
+		DataBP = ( BYTE * )Data ;
+		KeyBP = ( BYTE * )Key ;
+		if( SizeT >= DXA_KEYV2_LENGTH )
+		{
+			if( Position != 0 )
+			{
+				do
+				{
+					*DataBP ^= KeyBP[ Position ] ;
+					Position ++ ;
+					DataBP ++ ;
+					SizeT -- ;
+				}while( Position < DXA_KEYV2_LENGTH ) ;
+				Position = 0 ;
+			}
+
+			if( SizeT >= DXA_KEYV2_LENGTH )
+			{
+				DWORD SetNum ;
+				DWORD Key1, Key2, Key3, Key4, Key5, Key6, Key7, Key8 ;
+
+				SetNum = SizeT / DXA_KEYV2_LENGTH ;
+				SizeT -= SetNum * DXA_KEYV2_LENGTH ;
+				Key1 = ( ( DWORD * )KeyBP )[ 0 ] ;
+				Key2 = ( ( DWORD * )KeyBP )[ 1 ] ;
+				Key3 = ( ( DWORD * )KeyBP )[ 2 ] ;
+				Key4 = ( ( DWORD * )KeyBP )[ 3 ] ;
+				Key5 = ( ( DWORD * )KeyBP )[ 4 ] ;
+				Key6 = ( ( DWORD * )KeyBP )[ 5 ] ;
+				Key7 = ( ( DWORD * )KeyBP )[ 6 ] ;
+				Key8 = ( ( DWORD * )KeyBP )[ 7 ] ;
+
+				do
+				{
+					( ( DWORD * )DataBP )[ 0 ] ^= Key1 ;
+					( ( DWORD * )DataBP )[ 1 ] ^= Key2 ;
+					( ( DWORD * )DataBP )[ 2 ] ^= Key3 ;
+					( ( DWORD * )DataBP )[ 3 ] ^= Key4 ;
+					( ( DWORD * )DataBP )[ 4 ] ^= Key5 ;
+					( ( DWORD * )DataBP )[ 5 ] ^= Key6 ;
+					( ( DWORD * )DataBP )[ 6 ] ^= Key7 ;
+					( ( DWORD * )DataBP )[ 7 ] ^= Key8 ;
+					DataBP += DXA_KEYV2_LENGTH ;
+					SetNum -- ;
+				}while( SetNum > 0 ) ;
+			}
+		}
+
+		if( SizeT > 0 )
+		{
+			do
+			{
+				*DataBP ^= KeyBP[ Position ] ;
+				DataBP ++ ;
+				Position ++ ;
+				if( Position == DXA_KEYV2_LENGTH )
+					Position = 0 ;
+				SizeT -- ;
+			}while( SizeT > 0 ) ;
+		}
+	}
+	else
+	{
+		BYTE *DataBP ;
+		BYTE *KeyBP ;
+
+		DataBP = ( BYTE * )Data ;
+		KeyBP = ( BYTE * )Key ;
+		if( SizeLL >= DXA_KEYV2_LENGTH )
+		{
+			if( Position != 0 )
+			{
+				do
+				{
+					*DataBP ^= KeyBP[ Position ] ;
+					Position ++ ;
+					DataBP ++ ;
+					SizeLL -- ;
+				}while( Position < DXA_KEYV2_LENGTH ) ;
+				Position = 0 ;
+			}
+
+			if( SizeLL >= DXA_KEYV2_LENGTH )
+			{
+				DWORD SetNum ;
+				DWORD Key1, Key2, Key3, Key4, Key5, Key6, Key7, Key8 ;
+
+				SetNum = ( DWORD )( SizeLL / DXA_KEYV2_LENGTH ) ;
+				SizeLL -= SetNum * DXA_KEYV2_LENGTH ;
+				Key1 = ( ( DWORD * )KeyBP )[ 0 ] ;
+				Key2 = ( ( DWORD * )KeyBP )[ 1 ] ;
+				Key3 = ( ( DWORD * )KeyBP )[ 2 ] ;
+				Key4 = ( ( DWORD * )KeyBP )[ 3 ] ;
+				Key5 = ( ( DWORD * )KeyBP )[ 4 ] ;
+				Key6 = ( ( DWORD * )KeyBP )[ 5 ] ;
+				Key7 = ( ( DWORD * )KeyBP )[ 6 ] ;
+				Key8 = ( ( DWORD * )KeyBP )[ 7 ] ;
+
+				do
+				{
+					( ( DWORD * )DataBP )[ 0 ] ^= Key1 ;
+					( ( DWORD * )DataBP )[ 1 ] ^= Key2 ;
+					( ( DWORD * )DataBP )[ 2 ] ^= Key3 ;
+					( ( DWORD * )DataBP )[ 3 ] ^= Key4 ;
+					( ( DWORD * )DataBP )[ 4 ] ^= Key5 ;
+					( ( DWORD * )DataBP )[ 5 ] ^= Key6 ;
+					( ( DWORD * )DataBP )[ 6 ] ^= Key7 ;
+					( ( DWORD * )DataBP )[ 7 ] ^= Key8 ;
+					DataBP += DXA_KEYV2_LENGTH ;
+					SetNum -- ;
+				}while( SetNum > 0 ) ;
+			}
+		}
+
+		if( SizeLL > 0 )
+		{
+			do
+			{
+				*DataBP ^= KeyBP[ Position ] ;
+				DataBP ++ ;
+				Position ++ ;
+				if( Position == DXA_KEYV2_LENGTH )
+					Position = 0 ;
+				SizeLL -- ;
+			}while( SizeLL > 0 ) ;
+		}
+	}
+}
+
+// ?t?@?C??????Åg??????????f?[?^?????Å˜???????g?p???? Xor ÅÒÅÒ?Z???????Åh( Key ???K?? DXA_KEYSTR_LENGTH ??Åf????????????????????? )
+void DXA_KeyConvFileRead( void *Data, ULONGLONG  Size, DWORD_PTR FilePointer, unsigned char *Key, LONGLONG Position )
+{
+	LONGLONG pos ;
+
+	// ?t?@?C??????Åfu????Åg??????ÅN??
+	if( Position == -1 )
+	{
+		pos = ReadOnlyFileAccessTell( FilePointer ) ;
+	}
+	else
+	{
+		pos = Position ;
+	}
+
+	// Åg???????
+	ReadOnlyFileAccessRead( Data, ( size_t )Size, 1, FilePointer ) ;
+	while( ReadOnlyFileAccessIdleCheck( FilePointer ) == FALSE )
+	{
+		Thread_Sleep( 1 ) ;
+	}
+
+	// ?f?[?^?????Å˜???????g???? Xor ÅÒÅÒ?Z
+	DXA_KeyConv( Data, ( LONGLONG )Size, pos, Key ) ;
+}
+
+// ?t?@?C??????Åg??????????f?[?^?????Å˜???????g?p???? Xor ÅÒÅÒ?Z???????Åh( Key ???K?? DXA_KEYV2_LENGTH ??Åf????????????????????? )
+static void DXA_KeyV2ConvFileRead( void *Data, ULONGLONG Size, DWORD_PTR FilePointer, unsigned char *Key, LONGLONG Position )
+{
+	// Åg???????
+	ReadOnlyFileAccessRead( Data, ( size_t )Size, 1, FilePointer ) ;
+	while( ReadOnlyFileAccessIdleCheck( FilePointer ) == FALSE )
+	{
+		Thread_Sleep( 1 ) ;
+	}
+
+	// ?f?[?^?????Å˜???????g???? Xor ÅÒÅÒ?Z
+	DXA_KeyV2Conv( Data, ( LONGLONG )Size, Position, Key ) ;
+}
+
+// ??????ÅgK?Åˆ?????I?u?W?F?N?g??????????(????Åe????? ObjectCount ???C?Åg?f?b?N?X?????????Å}??????)(????Åfl -1:?G?ÅÒ?[ 0:???ÅÄ)
+static int DXA_FindProcess( DXA_FINDDATA *FindData, FILEINFOW *FileInfo )
+{
+	BYTE  *nameTable ;
+	DXARC *DXA ;
+	BYTE  *str ;
+	BYTE  *name ;
+	DWORD fileHeadSize ;
+	BYTE  TempName[ 2048 ] ;
+	BYTE  DotStr[ 16 ] ;
+	BYTE  DoubleDotStr[ 16 ] ;
+
+	DXA       = FindData->Container;
+	nameTable = DXA->Table.NameTable;
+	str       = FindData->SearchStr;
+
+	ConvString( ( const char * )Ascii_DotStr,       -1, DX_CHARCODEFORMAT_ASCII, ( char * )DotStr,       sizeof( DotStr       ), DXA->CharCodeFormat ) ;
+	ConvString( ( const char * )Ascii_DoubleDotStr, -1, DX_CHARCODEFORMAT_ASCII, ( char * )DoubleDotStr, sizeof( DoubleDotStr ), DXA->CharCodeFormat ) ;
+
+	if( DXA->V5Flag )
+	{
+		int i, num, addnum ;
+
+		DXARC_DIRECTORY_VER5 *dir ;
+		DXARC_FILEHEAD_VER5  *file ;
+
+		dir          = FindData->DirectoryV5 ;
+		num          = ( int )dir->FileHeadNum ;
+		addnum       = dir->ParentDirectoryAddress == 0xffffffff ? 1 : 2 ;
+		fileHeadSize = ( DWORD )( DXA->HeadV5.Version >= 0x0002 ? DXARC_FILEHEAD_VER2_SIZE : DXARC_FILEHEAD_VER1_SIZE ) ;
+
+		if( FindData->ObjectCount == ( DWORD )( num + addnum ) )
+		{
+			return -1 ;
+		}
+
+		file = ( DXARC_FILEHEAD_VER5 * )( DXA->Table.FileTable + dir->FileHeadAddress + fileHeadSize * FindData->ObjectCount ) ;
+		for( i = ( int )FindData->ObjectCount; i < num + addnum; i ++ )
+		{
+			if( i >= num )
+			{
+				if( i - num == 0 )
+				{
+					if( DXA_DIR_FileNameCmp( DXA, DotStr, str ) == 0 )
+					{
+						break ;
+					}
+				}
+				else
+				if( i - num == 1 )
+				{
+					if( DXA_DIR_FileNameCmp( DXA, DoubleDotStr, str ) == 0 )
+					{
+						break ;
+					}
+				}
+			}
+			else
+			{
+				name = ( BYTE * )( nameTable + file->NameAddress + 4 ) ;
+				if( DXA_DIR_FileNameCmp( DXA, name, str ) == 0 )
+				{
+					break ;
+				}
+
+				file = (DXARC_FILEHEAD_VER5 *)( (BYTE *)file + fileHeadSize ) ;
+			}
+		}
+		FindData->ObjectCount = ( DWORD )i ;
+		if( i == num + addnum )
+		{
+			return -1 ;
+		}
+
+		if( FileInfo )
+		{
+			if( i >= num )
+			{
+				switch( i - num )
+				{
+				default :
+				case 0 :
+					CL_strcpy_s( DXA->CharCodeFormat, ( char * )TempName, sizeof( TempName ), ( const char * )DotStr  ) ;
+					break ;
+
+				case 1 :
+					CL_strcpy_s( DXA->CharCodeFormat, ( char * )TempName, sizeof( TempName ), ( const char * )DoubleDotStr ) ;
+					break ;
+				}
+				FileInfo->DirFlag = 1 ;
+				FileInfo->Size    = 0 ;
+				_MEMSET( &FileInfo->CreationTime,  0, sizeof( FileInfo->CreationTime  ) ) ;
+				_MEMSET( &FileInfo->LastWriteTime, 0, sizeof( FileInfo->LastWriteTime ) ) ;
+			}
+			else
+			{
+				name = ( BYTE * )( nameTable + file->NameAddress ) ;
+				CL_strcpy_s( DXA->CharCodeFormat, ( char * )TempName, sizeof( TempName ), ( const char * )( name + ( ( WORD * )name )[ 0 ] * 4 + 4 ) ) ;
+				FileInfo->DirFlag = ( file->Attributes & FILE_ATTRIBUTE_DIRECTORY ) != 0 ? TRUE : FALSE ;
+				FileInfo->Size    = ( LONGLONG )file->DataSize ;
+#ifdef __WINDOWS__
+				_FileTimeToLocalDateData( ( FILETIME * )&file->Time.Create,    &FileInfo->CreationTime  ) ;
+				_FileTimeToLocalDateData( ( FILETIME * )&file->Time.LastWrite, &FileInfo->LastWriteTime ) ;
+#else // __WINDOWS__
+				_MEMSET( &FileInfo->CreationTime,  0, sizeof( FileInfo->CreationTime  ) ) ;
+				_MEMSET( &FileInfo->LastWriteTime, 0, sizeof( FileInfo->LastWriteTime ) ) ;
+#endif // __WINDOWS__
+			}
+
+			ConvString( ( const char * )TempName, -1, DXA->CharCodeFormat, ( char * )FileInfo->Name, sizeof( FileInfo->Name ), WCHAR_T_CHARCODEFORMAT ) ;
+		}
+	}
+	else
+	{
+		ULONGLONG i, num, addnum ;
+		DXARC_DIRECTORY *dir ;
+		DXARC_FILEHEAD *file ;
+
+		dir          = FindData->Directory ;
+		num          = dir->FileHeadNum ;
+		addnum       = ( ULONGLONG )( dir->ParentDirectoryAddress == NONE_PAL ? 1 : 2 ) ;
+		fileHeadSize = DXARC_FILEHEAD_VER6_SIZE ;
+
+		if( FindData->ObjectCount == ( DWORD )( num + addnum ) )
+		{
+			return -1 ;
+		}
+
+		file = ( DXARC_FILEHEAD * )( DXA->Table.FileTable + dir->FileHeadAddress + fileHeadSize * FindData->ObjectCount ) ;
+		for( i = FindData->ObjectCount; i < num + addnum; i ++ )
+		{
+			if( i >= num )
+			{
+				if( i - num == 0 )
+				{
+					if( DXA_DIR_FileNameCmp( DXA, DotStr,       str ) == 0 )
+					{
+						break ;
+					}
+				}
+				else
+				if( i - num == 1 )
+				{
+					if( DXA_DIR_FileNameCmp( DXA, DoubleDotStr, str ) == 0 )
+					{
+						break;
+					}
+				}
+			}
+			else
+			{
+				name = ( BYTE * )( nameTable + file->NameAddress + 4 ) ;
+				if( DXA_DIR_FileNameCmp( DXA, name, str ) == 0 )
+				{
+					break ;
+				}
+
+				file = (DXARC_FILEHEAD *)( (BYTE *)file + fileHeadSize ) ;
+			}
+		}
+		FindData->ObjectCount = ( DWORD )i ;
+		if( i == num + addnum )
+		{
+			return -1 ;
+		}
+
+		if( FileInfo )
+		{
+			if( i >= num )
+			{
+				switch( i - num )
+				{
+				default :
+				case 0:
+					CL_strcpy_s( DXA->CharCodeFormat, ( char * )TempName, sizeof( TempName ), ( const char * )DotStr       ) ;
+					break ;
+
+				case 1 :
+					CL_strcpy_s( DXA->CharCodeFormat, ( char * )TempName, sizeof( TempName ), ( const char * )DoubleDotStr ) ;
+					break ;
+				}
+				FileInfo->DirFlag = 1 ;
+				FileInfo->Size    = 0 ;
+				_MEMSET( &FileInfo->CreationTime,  0, sizeof( FileInfo->CreationTime  ) ) ;
+				_MEMSET( &FileInfo->LastWriteTime, 0, sizeof( FileInfo->LastWriteTime ) ) ;
+			}
+			else
+			{
+				name = ( BYTE * )( nameTable + file->NameAddress ) ;
+				CL_strcpy_s( DXA->CharCodeFormat, ( char * )TempName, sizeof( TempName ), ( const char * )( name + ( ( WORD * )name )[ 0 ] * 4 + 4 ) ) ;
+				FileInfo->DirFlag = ( file->Attributes & FILE_ATTRIBUTE_DIRECTORY ) != 0 ? TRUE : FALSE ;
+				FileInfo->Size    = ( LONGLONG)file->DataSize ;
+#ifdef __WINDOWS__
+				_FileTimeToLocalDateData( ( FILETIME * )&file->Time.Create,    &FileInfo->CreationTime  ) ;
+				_FileTimeToLocalDateData( ( FILETIME * )&file->Time.LastWrite, &FileInfo->LastWriteTime ) ;
+#else // __WINDOWS__
+				_MEMSET( &FileInfo->CreationTime,  0, sizeof( FileInfo->CreationTime  ) ) ;
+				_MEMSET( &FileInfo->LastWriteTime, 0, sizeof( FileInfo->LastWriteTime ) ) ;
+#endif // __WINDOWS__
+			}
+
+			ConvString( ( const char * )TempName, -1, DXA->CharCodeFormat, ( char * )FileInfo->Name, sizeof( FileInfo->Name ), WCHAR_T_CHARCODEFORMAT ) ;
+		}
+	}
+
+	return 0 ;
+}
+
+
+
+// ?A?[?J?C?u?t?@?C?????????Å~???\Åe?Åe????ÅÒ??ÅÒ?????
+extern	int	DXA_Initialize( DXARC *DXA )
+{
+	_MEMSET( DXA, 0, sizeof( DXARC ) ) ;
+
+	// ?I??
+	return 0 ;
+}
+
+// ?A?[?J?C?u?t?@?C?????????Å~???\Åe?Åe??????n????????
+extern int DXA_Terminate( DXARC *DXA )
+{
+	DXA_CloseArchive( DXA ) ;
+
+	_MEMSET( DXA, 0, sizeof( DXARC ) ) ;
+
+	// ?I??
+	return 0 ;
+}
+
+// ?wÅf????f?B???N?g???f?[?^?????ÅıÅÒ???ÅÒ???????( ??????????????Åg????????????Åˆ?p )
+static int DXA_DirectoryKeyConv( DXARC *DXA, DXARC_DIRECTORY *Dir, char *KeyV2StringBuffer )
+{
+	// ???????C???[?W???????????Åˆ???G?ÅÒ?[
+	if( DXA->MemoryOpenFlag == FALSE )
+		return -1 ;
+
+	// ?o?[?W?Åˆ?Åg 0x0006 ????ÅeO????ÅÒ?????????
+	if( DXA->V5Flag )
+		return 0 ;
+
+	// ???ÅıÅÒ?ÅÒ????????J?n
+	{
+		DWORD i, FileHeadSize ;
+		DXARC_FILEHEAD *File ;
+		unsigned char KeyV2[DXA_KEYV2_LENGTH] ;
+		size_t KeyV2StringBytes ;
+
+		// ?iÅh[???????????t?@?C?????Åh?????J??????
+		FileHeadSize = DXARC_FILEHEAD_VER6_SIZE ;
+		File = ( DXARC_FILEHEAD * )( DXA->Table.FileTable + Dir->FileHeadAddress ) ;
+		for( i = 0 ; i < Dir->FileHeadNum ; i ++, File = ( DXARC_FILEHEAD * )( ( BYTE * )File + FileHeadSize ) )
+		{
+			// ?f?B???N?g??????????????????????
+			if( File->Attributes & FILE_ATTRIBUTE_DIRECTORY )
+			{
+				// ?f?B???N?g???????Åˆ?????A????????
+				DXA_DirectoryKeyConv( DXA, ( DXARC_DIRECTORY * )( DXA->Table.DirectoryTable + File->DataAddress ), KeyV2StringBuffer ) ;
+			}
+			else
+			{
+				BYTE *DataP ;
+
+				// ?t?@?C???????Åˆ?????ÅıÅÒ???ÅÒ???????
+				
+				// ?f?[?^?????????Åˆ????????
+				if( File->DataSize != 0 )
+				{
+					// ?f?[?^??Åfu???Z?b?g????
+					DataP = ( BYTE * )DXA->MemoryImage + DXA->Head.DataStartAddress + File->DataAddress ;
+
+					// ?f?[?^?????k??????????????????????????????
+					if( File->PressDataSize != NONE_PAL )
+					{
+						// ???k?????????????Åˆ
+						if( DXA->Head.Version >= DXA_KEYV2_VER )
+						{
+							// ?t?@?C????????????????
+							KeyV2StringBytes = DXA_CreateKeyV2FileString( DXA, Dir, File, ( BYTE * )KeyV2StringBuffer ) ;
+							DXA_KeyV2Create( KeyV2StringBuffer, KeyV2 , KeyV2StringBytes ) ;
+
+							DXA_KeyV2Conv( DataP, ( LONGLONG )File->PressDataSize, ( LONGLONG )File->DataSize, KeyV2 ) ;
+						}
+						else
+						{
+							DXA_KeyConv( DataP, ( LONGLONG )File->PressDataSize, ( LONGLONG )File->DataSize, DXA->Key ) ;
+						}
+					}
+					else
+					{
+						// ???k???????????????Åˆ
+						if( DXA->Head.Version >= DXA_KEYV2_VER )
+						{
+							// ?t?@?C????????????????
+							KeyV2StringBytes = DXA_CreateKeyV2FileString( DXA, Dir, File, ( BYTE * )KeyV2StringBuffer ) ;
+							DXA_KeyV2Create( KeyV2StringBuffer, KeyV2 , KeyV2StringBytes ) ;
+
+							DXA_KeyV2Conv( DataP, ( LONGLONG )File->DataSize, ( LONGLONG )File->DataSize, KeyV2 ) ;
+						}
+						else
+						{
+							DXA_KeyConv( DataP, ( LONGLONG )File->DataSize, ( LONGLONG )File->DataSize, DXA->Key ) ;
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// ?I??
+	return 0 ;
+}
+
+// ?wÅf????f?B???N?g???f?[?^?????ÅıÅÒ???ÅÒ???????( ??????????????Åg????????????Åˆ?p )
+static int DXA_DirectoryKeyConvV5( DXARC *DXA, DXARC_DIRECTORY_VER5 *Dir )
+{
+	// ???????C???[?W???????????Åˆ???G?ÅÒ?[
+	if( DXA->MemoryOpenFlag == FALSE )
+	{
+		return -1 ;
+	}
+
+	// ?o?[?W?Åˆ?Åg 0x0005 ????ÅeO????ÅÒ?????????
+	if( DXA->HeadV5.Version < 0x0005 )
+	{
+		return 0 ;
+	}
+	
+	// ???ÅıÅÒ?ÅÒ????????J?n
+	{
+		DWORD i, FileHeadSize ;
+		DXARC_FILEHEAD_VER5 *File ;
+
+		// ?iÅh[???????????t?@?C?????Åh?????J??????
+		FileHeadSize = ( DWORD )( DXA->HeadV5.Version >= 0x0002 ? DXARC_FILEHEAD_VER2_SIZE : DXARC_FILEHEAD_VER1_SIZE ) ;
+		File = ( DXARC_FILEHEAD_VER5 * )( DXA->Table.FileTable + Dir->FileHeadAddress ) ;
+		for( i = 0 ; i < Dir->FileHeadNum ; i ++, File = ( DXARC_FILEHEAD_VER5 * )( ( BYTE * )File + FileHeadSize ) )
+		{
+			// ?f?B???N?g??????????????????????
+			if( File->Attributes & FILE_ATTRIBUTE_DIRECTORY )
+			{
+				// ?f?B???N?g???????Åˆ?????A????????
+				DXA_DirectoryKeyConvV5( DXA, ( DXARC_DIRECTORY_VER5 * )( DXA->Table.DirectoryTable + File->DataAddress ) ) ;
+			}
+			else
+			{
+				BYTE *DataP ;
+
+				// ?t?@?C???????Åˆ?????ÅıÅÒ???ÅÒ???????
+				
+				// ?f?[?^?????????Åˆ????????
+				if( File->DataSize != 0 )
+				{
+					// ?f?[?^??Åfu???Z?b?g????
+					DataP = ( BYTE * )DXA->MemoryImage + DXA->HeadV5.DataStartAddress + File->DataAddress ;
+
+					// ?f?[?^?????k??????????????????????????????
+					if( DXA->HeadV5.Version >= 0x0002 && File->PressDataSize != 0xffffffff )
+					{
+						// ???k?????????????Åˆ
+						DXA_KeyConv( DataP, File->PressDataSize, File->DataSize, DXA->Key ) ;
+					}
+					else
+					{
+						// ???k???????????????Åˆ
+						DXA_KeyConv( DataP, File->DataSize, File->DataSize, DXA->Key ) ;
+					}
+				}
+			}
+		}
+	}
+
+	// ?I??
+	return 0 ;
+}
+
+// ???????????????A?[?J?C?u?t?@?C???C???[?W???J??( 0:???ÅÄ  -1:??Åhs )
+extern int DXA_OpenArchiveFromMem( DXARC *DXA, void *ArchiveImage, int ArchiveSize, int ArchiveImageCopyFlag, int ArchiveImageReadOnlyFlag, const char *KeyString, const wchar_t *EmulateArchivePath )
+{
+	BYTE *datp ;
+
+	// ???????C???[?W???R?s?[?????g?p???????Åˆ??Åg??????????p??????????
+	if( ArchiveImageCopyFlag )
+	{
+		ArchiveImageReadOnlyFlag = FALSE ;
+	}
+
+	// ???????????????A?[?J?C?u???J???????????Åˆ???G?ÅÒ?[
+	if( DXA->WinFilePointer__ != 0 || DXA->MemoryImage != NULL ) return -1 ;
+
+	// ????????
+	DXA_KeyCreate( KeyString, DXA->Key ) ;
+	DXA_KeyV2Create( KeyString, DXA->KeyV2 ) ;
+
+	// ???Å˜????????ÅeÅ˜
+	if( KeyString == NULL )
+	{
+		DXA->KeyV2String[ 0 ] = '\0' ;
+		DXA->KeyV2StringBytes = 0 ;
+	}
+	else
+	{
+		DXA->KeyV2StringBytes = CL_strlen( DX_CHARCODEFORMAT_ASCII, KeyString ) ;
+		if( DXA->KeyV2StringBytes > DXA_KEYV2STR_LENGTH )
+		{
+			DXA->KeyV2StringBytes = DXA_KEYV2STR_LENGTH ;
+		}
+		_MEMCPY( DXA->KeyV2String, KeyString, DXA->KeyV2StringBytes ) ;
+		DXA->KeyV2String[ DXA->KeyV2StringBytes ] = '\0' ;
+	}
+
+	// ?t?@?C???p?X????ÅeÅ˜
+	if( EmulateArchivePath != NULL )
+	{
+		_WCSCPY_S( DXA->FilePath, sizeof( DXA->FilePath ), EmulateArchivePath ) ;
+	}
+	else
+	{
+		_MEMSET( DXA->FilePath, 0, sizeof( DXA->FilePath ) ) ;
+	}
+
+	DXA->Table.Top   = NULL ;
+	DXA->MemoryImage = NULL ;
+	if( ArchiveImageCopyFlag )
+	{
+		// ?C???[?W???R?s?[?????t?ÅÒ?O???Åò???????????Åˆ???R?s?[?????????????????m??
+		DXA->MemoryImage = DXALLOC( ( size_t )ArchiveSize ) ;
+		if( DXA->MemoryImage == NULL )
+		{
+			return -1 ;
+		}
+
+		// ?A?[?J?C?u?t?@?C???C???[?W??Åg??e???m???????????????R?s?[
+		_MEMCPY( DXA->MemoryImage, ArchiveImage, ( size_t )ArchiveSize ) ;
+
+		// ?R?s?[???????????C???[?W???g?p????
+		DXA->MemoryImageOriginal = ArchiveImage ;
+		ArchiveImage             = DXA->MemoryImage ;
+	}
+	else
+	{
+		// ?|?C?Åg?^????ÅeÅ˜
+		DXA->MemoryImage         = ArchiveImage ;
+		DXA->MemoryImageOriginal = NULL ;
+	}
+
+	DXA->V5Flag = FALSE ;
+
+	// ???ÅÒ???w?b?_???Åh????Åh?Åg]????
+	_MEMCPY( &DXA->Head, ArchiveImage, DXARC_ID_AND_VERSION_SIZE ) ;
+	DXA_KeyV2Conv( &DXA->Head, DXARC_ID_AND_VERSION_SIZE, 0, DXA->KeyV2 ) ;
+
+	// ?h?c??????
+	if( DXA->Head.Head != DXAHEAD )
+	{
+		// ?o?[?W?Åˆ?Åg?U??ÅeO??Åf??Å~??
+		_MEMCPY( &DXA->Head, ArchiveImage, DXARC_ID_AND_VERSION_SIZE ) ;
+		DXA_KeyConv( &DXA->Head, DXARC_ID_AND_VERSION_SIZE, 0, DXA->Key ) ;
+
+		// ?h?c??????
+		if( DXA->Head.Head != DXAHEAD )
+		{
+			// ?o?[?W?Åˆ?Åg?Q??ÅeO??Åf??Å~??
+			_MEMSET( DXA->Key, 0xff, DXA_KEYSTR_LENGTH ) ;
+
+			_MEMCPY( &DXA->Head, ArchiveImage, DXARC_ID_AND_VERSION_SIZE ) ;
+			DXA_KeyConv( &DXA->Head, DXARC_ID_AND_VERSION_SIZE, 0, DXA->Key ) ;
+
+			// ?o?[?W?Åˆ?Åg?Q??ÅeO???????????Åˆ???G?ÅÒ?[
+			if( DXA->Head.Head != DXAHEAD )
+			{
+				goto ERR ;
+			}
+		}
+	}
+
+	// ?o?[?W?Åˆ?Åg6???~????????????????????
+	if( DXA->Head.Version >= 0x0006 )
+	{
+		DXA->V5Flag = FALSE ;
+
+		DXA->Head.CharCodeFormat = 0 ;
+
+		// ?w?b?_??ÅÒ???????
+		{
+			if( DXA->Head.Version >= DXA_KEYV2_VER )
+			{
+				_MEMCPY( &DXA->Head, ArchiveImage, DXARC_HEAD_VER6_SIZE ) ;
+				DXA_KeyV2Conv( &DXA->Head, DXARC_HEAD_VER6_SIZE, 0, DXA->KeyV2 ) ;
+			}
+			else
+			{
+				_MEMCPY( &DXA->Head, ArchiveImage, DXARC_HEAD_VER6_SIZE ) ;
+				DXA_KeyConv( &DXA->Head, DXARC_HEAD_VER6_SIZE, 0, DXA->Key ) ;
+			}
+
+			// ?h?c??????
+			if( DXA->Head.Head != DXAHEAD )
+			{
+				goto ERR ;
+			}
+			
+			// ?o?[?W?Åˆ?Åg????
+			if( DXA->Head.Version > DXAVER )
+			{
+				goto ERR ;
+			}
+
+			// ?Å˜???R?[?h?`?????Z?b?g
+			switch( DXA->Head.CharCodeFormat )
+			{
+			case DX_CHARCODEFORMAT_UHC :
+			case DX_CHARCODEFORMAT_BIG5 :
+			case DX_CHARCODEFORMAT_GB2312 :
+			case DX_CHARCODEFORMAT_SHIFTJIS :
+			case DX_CHARCODEFORMAT_UTF16LE :
+			case DX_CHARCODEFORMAT_UTF16BE :
+			case DX_CHARCODEFORMAT_WINDOWS_1252 :
+			case DX_CHARCODEFORMAT_ISO_IEC_8859_15 :
+			case DX_CHARCODEFORMAT_UTF8 :
+			case DX_CHARCODEFORMAT_UTF32LE :
+			case DX_CHARCODEFORMAT_UTF32BE :
+				DXA->CharCodeFormat = ( int )DXA->Head.CharCodeFormat ;
+				break ;
+
+			default :
+				DXA->CharCodeFormat = DX_CHARCODEFORMAT_SHIFTJIS ;
+				break ;
+			}
+
+			// Åg??????????p?????Åˆ???????e?[?u?????T?C?Y?????????????m??????
+			if( ArchiveImageReadOnlyFlag )
+			{
+				DXA->Table.Top = ( BYTE * )DXALLOC( DXA->Head.HeadSize ) ;
+				if( DXA->Table.Top == NULL )
+				{
+					goto ERR ;
+				}
+
+				_MEMCPY( DXA->Table.Top,  (BYTE *)DXA->MemoryImage + DXA->Head.FileNameTableStartAddress, DXA->Head.HeadSize ) ;
+			}
+			else
+			{
+				// ?????e?[?u?????A?h???X???Z?b?g????
+				DXA->Table.Top          = (BYTE *)DXA->MemoryImage + DXA->Head.FileNameTableStartAddress ;
+			}
+			if( DXA->Head.Version >= DXA_KEYV2_VER )
+			{
+				DXA_KeyV2Conv( DXA->Table.Top, DXA->Head.HeadSize, 0, DXA->KeyV2 ) ;
+			}
+			else
+			{
+				DXA_KeyConv( DXA->Table.Top, DXA->Head.HeadSize, 0, DXA->Key ) ;
+			}
+
+			DXA->Table.NameTable		= DXA->Table.Top ;
+			DXA->Table.FileTable		= DXA->Table.NameTable + DXA->Head.FileTableStartAddress ;
+			DXA->Table.DirectoryTable	= DXA->Table.NameTable + DXA->Head.DirectoryTableStartAddress ;
+		}
+
+		// ?J???Åg?g?f?B???N?g?????Z?b?g
+		DXA->CurrentDirectory = ( DXARC_DIRECTORY * )DXA->Table.DirectoryTable ;
+
+		DXA->MemoryOpenFlag					= TRUE ;						// ???????C???[?W?????J?????????t?ÅÒ?O???Åò????
+		DXA->UserMemoryImageFlag			= TRUE ;						// ?Åı?[?U?[???C???[?W?????J?????t?ÅÒ?O???Åò????
+		DXA->MemoryImageSize				= ArchiveSize ;					// ?T?C?Y????ÅeÅ˜?????ÅN??
+		DXA->MemoryImageCopyFlag			= ArchiveImageCopyFlag ;		// ???????C???[?W???R?s?[?????g?p???????????????????t?ÅÒ?O????ÅeÅ˜
+		DXA->MemoryImageReadOnlyFlag        = ArchiveImageReadOnlyFlag ;	// ???????C???[?W??Åg??????????p?????????????????t?ÅÒ?O????ÅeÅ˜
+
+		// ÅeS?????t?@?C???f?[?^?????ÅıÅÒ???ÅÒ???????
+		if( ArchiveImageReadOnlyFlag == FALSE )
+		{
+			char KeyV2String[ DXA_KEYV2_STRING_MAXLENGTH ] ;
+			DXA_DirectoryKeyConv( DXA, ( DXARC_DIRECTORY * )DXA->Table.DirectoryTable, KeyV2String ) ;
+		}
+	}
+	else
+	{
+		DXA->V5Flag = TRUE ;
+
+		// ?o?[?W?Åˆ?Åg????
+		if( DXA->HeadV5.Version > DXAVER_VER5 )
+		{
+			goto ERR ;
+		}
+
+		// ????????Åg??????????p??????????????????????????
+		if( ArchiveImageReadOnlyFlag )
+		{
+			// ?o?[?W?Åˆ?Åg???S??????????????Åg????????c?????w?b?_?T?C?Y?????X
+			if( DXA->HeadV5.Version >= 0x0004 )
+			{
+				_MEMCPY( &DXA->HeadV5, ArchiveImage, DXARC_HEAD_VER4_SIZE ) ;
+				DXA_KeyConv( &DXA->HeadV5, DXARC_HEAD_VER4_SIZE, 0, DXA->Key ) ;
+				switch( DXA->HeadV5.CharCodeFormat )
+				{
+				case DX_CHARCODEFORMAT_UHC :
+				case DX_CHARCODEFORMAT_BIG5 :
+				case DX_CHARCODEFORMAT_GB2312 :
+				case DX_CHARCODEFORMAT_SHIFTJIS :
+				case DX_CHARCODEFORMAT_UTF16LE :
+				case DX_CHARCODEFORMAT_UTF16BE :
+				case DX_CHARCODEFORMAT_WINDOWS_1252 :
+				case DX_CHARCODEFORMAT_ISO_IEC_8859_15 :
+				case DX_CHARCODEFORMAT_UTF8 :
+				case DX_CHARCODEFORMAT_UTF32LE :
+				case DX_CHARCODEFORMAT_UTF32BE :
+					DXA->CharCodeFormat = ( int )DXA->HeadV5.CharCodeFormat ;
+					break ;
+
+				default :
+					DXA->CharCodeFormat = DX_CHARCODEFORMAT_SHIFTJIS ;
+					break ;
+				}
+			}
+			else
+			{
+				_MEMCPY( &DXA->HeadV5, ArchiveImage, DXARC_HEAD_VER3_SIZE ) ;
+				DXA_KeyConv( &DXA->HeadV5, DXARC_HEAD_VER3_SIZE, 0, DXA->Key ) ;
+
+				DXA->HeadV5.CharCodeFormat = DX_CHARCODEFORMAT_SHIFTJIS ;
+				DXA->CharCodeFormat        = DX_CHARCODEFORMAT_SHIFTJIS ;
+			}
+
+			// ?????e?[?u?????T?C?Y?????????????m??????
+			DXA->Table.Top = ( BYTE * )DXALLOC( DXA->HeadV5.HeadSize ) ;
+			if( DXA->Table.Top == NULL )
+			{
+				goto ERR ;
+			}
+			
+			// ?????e?[?u????????????Åg???????
+			_MEMCPY( DXA->Table.Top, ( BYTE * )DXA->MemoryImage + DXA->HeadV5.FileNameTableStartAddress, DXA->HeadV5.HeadSize ) ;
+			if( DXA->HeadV5.Version >= 0x0005 )
+			{
+				DXA_KeyConv( DXA->Table.Top, DXA->HeadV5.HeadSize,                                     0, DXA->Key ) ;
+			}
+			else
+			{
+				DXA_KeyConv( DXA->Table.Top, DXA->HeadV5.HeadSize, DXA->HeadV5.FileNameTableStartAddress, DXA->Key ) ;
+			}
+		}
+		else
+		{
+			// ???Å~?????f?[?^??Åh?Åg]????
+			if( DXA->HeadV5.Version < 0x0005 )
+			{
+				DXA_KeyConv( ArchiveImage, ArchiveSize, 0, DXA->Key ) ;
+			}
+
+			datp = (BYTE *)ArchiveImage ;
+
+			// ?w?b?_??ÅÒ???????
+			{
+				if( DXA->HeadV5.Version >= 0x0005 )
+				{
+					_MEMCPY( &DXA->HeadV5, datp, DXARC_HEAD_VER3_SIZE ) ;
+					DXA_KeyConv( &DXA->HeadV5, DXARC_HEAD_VER3_SIZE, 0, DXA->Key ) ;
+				}
+				else
+				{
+					_MEMCPY( &DXA->HeadV5, datp, DXARC_HEAD_VER3_SIZE ) ;
+				}
+				datp += DXARC_HEAD_VER3_SIZE ;
+
+				// ?h?c??????
+				if( DXA->HeadV5.Head != DXAHEAD )
+				{
+					goto ERR ;
+				}
+				
+				// ?o?[?W?Åˆ?Åg????
+				if( DXA->HeadV5.Version > DXAVER_VER5 )
+				{
+					goto ERR ;
+				}
+
+				// ?o?[?W?Åˆ?Åg?? 4?????????????Å˜???R?[?h?`????Åg???????
+				if( DXA->HeadV5.Version >= 0x0004 )
+				{
+					DXA->HeadV5.CharCodeFormat = *( ( DWORD * )datp ) ;
+					if( DXA->HeadV5.Version >= 0x0005 )
+					{
+						DXA_KeyConv( &DXA->HeadV5.CharCodeFormat, 4, DXARC_HEAD_VER3_SIZE, DXA->Key ) ;
+					}
+					switch( DXA->HeadV5.CharCodeFormat )
+					{
+					case DX_CHARCODEFORMAT_UHC :
+					case DX_CHARCODEFORMAT_BIG5 :
+					case DX_CHARCODEFORMAT_GB2312 :
+					case DX_CHARCODEFORMAT_SHIFTJIS :
+					case DX_CHARCODEFORMAT_UTF16LE :
+					case DX_CHARCODEFORMAT_UTF16BE :
+					case DX_CHARCODEFORMAT_WINDOWS_1252 :
+					case DX_CHARCODEFORMAT_ISO_IEC_8859_15 :
+					case DX_CHARCODEFORMAT_UTF8 :
+					case DX_CHARCODEFORMAT_UTF32LE :
+					case DX_CHARCODEFORMAT_UTF32BE :
+						DXA->CharCodeFormat = ( int )DXA->HeadV5.CharCodeFormat ;
+						break ;
+
+					default :
+						DXA->CharCodeFormat = DX_CHARCODEFORMAT_SHIFTJIS ;
+						break ;
+					}
+				}
+				else
+				{
+					DXA->HeadV5.CharCodeFormat = DX_CHARCODEFORMAT_SHIFTJIS ;
+					DXA->CharCodeFormat        = DX_CHARCODEFORMAT_SHIFTJIS ;
+				}
+
+				// ?????e?[?u?????A?h???X???Z?b?g????
+				DXA->Table.Top = (BYTE *)DXA->MemoryImage + DXA->HeadV5.FileNameTableStartAddress ;
+				if( DXA->HeadV5.Version >= 0x0005 )
+				{
+					DXA_KeyConv( DXA->Table.Top, DXA->HeadV5.HeadSize, 0, DXA->Key ) ;
+				}
+			}
+		}
+
+		// ?????e?[?u?????A?h???X???Z?b?g????
+		DXA->Table.NameTable		= DXA->Table.Top ;
+		DXA->Table.FileTable		= DXA->Table.NameTable + DXA->HeadV5.FileTableStartAddress ;
+		DXA->Table.DirectoryTable	= DXA->Table.NameTable + DXA->HeadV5.DirectoryTableStartAddress ;
+
+		// ?J???Åg?g?f?B???N?g?????Z?b?g
+		DXA->CurrentDirectoryV5 = ( DXARC_DIRECTORY_VER5 * )DXA->Table.DirectoryTable ;
+
+		DXA->MemoryOpenFlag					= TRUE ;						// ???????C???[?W?????J?????????t?ÅÒ?O???Åò????
+		DXA->UserMemoryImageFlag			= TRUE ;						// ?Åı?[?U?[???C???[?W?????J?????t?ÅÒ?O???Åò????
+		DXA->MemoryImageSize				= ArchiveSize ;					// ?T?C?Y????ÅeÅ˜?????ÅN??
+		DXA->MemoryImageCopyFlag			= ArchiveImageCopyFlag ;		// ???????C???[?W???R?s?[?????g?p???????????????????t?ÅÒ?O????ÅeÅ˜
+		DXA->MemoryImageReadOnlyFlag        = ArchiveImageReadOnlyFlag ;	// ???????C???[?W??Åg??????????p?????????????????t?ÅÒ?O????ÅeÅ˜
+
+		if( ArchiveImageReadOnlyFlag == FALSE )
+		{
+			// ÅeS?????t?@?C???f?[?^?????ÅıÅÒ???ÅÒ???????
+			if( DXA->HeadV5.Version >= 0x0005 )
+			{
+				DXA_DirectoryKeyConvV5( DXA, ( DXARC_DIRECTORY_VER5 * )DXA->Table.DirectoryTable ) ;
+			}
+		}
+	}
+
+	// ?I??
+	return 0 ;
+
+ERR :
+	if( ArchiveImageCopyFlag )
+	{
+		if( DXA->MemoryImage != NULL )
+		{
+			DXFREE( DXA->MemoryImage ) ;
+			DXA->MemoryImage = NULL ;
+		}
+	}
+	else
+	if( ArchiveImageReadOnlyFlag )
+	{
+		if( DXA->Table.Top != NULL )
+		{
+			DXFREE( DXA->Table.Top ) ;
+			DXA->Table.Top = NULL ;
+		}
+	}
+	else
+	{
+		if( DXA->V5Flag )
+		{
+			// Åh?Åg]?????f?[?^??????????
+			if( DXA->HeadV5.Version < 0x0005 )
+			{
+				DXA_KeyConv( ArchiveImage, ArchiveSize, 0, DXA->Key ) ;
+			}
+		}
+	}
+	
+	// ?I??
+	return -1 ;
+}
+
+// ?A?[?J?C?u?t?@?C??????????Åh?????????????Åg???( TRUE:??????????  FALSE:???????????? )
+extern int DXA_CheckIdle( DXARC *DXA )
+{
+	// Åh?Åg????I?[?v?ÅgÅfÅı????????????Åg????????Å}????????
+	if( DXA->ASyncOpenFlag == FALSE )
+	{
+		return TRUE ;
+	}
+
+	// ?t?@?C??Åg???????????????????????Åf??Å~??
+	if( ReadOnlyFileAccessIdleCheck( DXA->ASyncOpenFilePointer ) == FALSE )
+	{
+		return FALSE ;
+	}
+
+	// ?t?@?C???????Å˜??
+	ReadOnlyFileAccessClose( DXA->ASyncOpenFilePointer ) ;
+	DXA->ASyncOpenFilePointer = 0;
+
+	// ???Å~?????f?[?^??Åh?Åg]????
+	if( DXA->V5Flag == FALSE )
+	{
+		char KeyV2String[ DXA_KEYV2_STRING_MAXLENGTH ] ;
+		DXA_DirectoryKeyConv( DXA, ( DXARC_DIRECTORY * )DXA->Table.DirectoryTable, KeyV2String ) ;
+	}
+	else
+	{
+		if( DXA->HeadV5.Version >= 0x0005 )
+		{
+			DXA_DirectoryKeyConvV5( DXA, ( DXARC_DIRECTORY_VER5 * )DXA->Table.DirectoryTable ) ;
+		}
+		else
+		{
+			DXA_KeyConv( DXA->MemoryImage, DXA->MemoryImageSize, 0, DXA->Key ) ;
+		}
+	}
+
+	// Åh?Åg????I?[?v?ÅgÅfÅı?t?ÅÒ?O??Åg|??
+	DXA->ASyncOpenFlag = FALSE ;
+
+	// ?I??
+	return TRUE ;
+}
+
+// ?A?[?J?C?u?t?@?C?????J?????ÅÒ?????Å~????????????Åg?????????????????????( 0:???ÅÄ  -1:??Åhs )
+extern int DXA_OpenArchiveFromFileUseMem( DXARC *DXA, const wchar_t *ArchivePath, const char *KeyString , int ASyncThread )
+{
+	// ???????????????A?[?J?C?u???J???????????Åˆ???G?ÅÒ?[
+	if( DXA->WinFilePointer__ != 0 || DXA->MemoryImage )
+	{
+		return -1 ;
+	}
+
+	// ????????
+	DXA_KeyCreate( KeyString, DXA->Key ) ;
+	DXA_KeyV2Create( KeyString, DXA->KeyV2 ) ;
+
+	// ???Å˜????????ÅeÅ˜
+	if( KeyString == NULL )
+	{
+		DXA->KeyV2String[ 0 ] = '\0' ;
+		DXA->KeyV2StringBytes = 0 ;
+	}
+	else
+	{
+		DXA->KeyV2StringBytes = CL_strlen( DX_CHARCODEFORMAT_ASCII, KeyString ) ;
+		if( DXA->KeyV2StringBytes > DXA_KEYV2STR_LENGTH )
+		{
+			DXA->KeyV2StringBytes = DXA_KEYV2STR_LENGTH ;
+		}
+		_MEMCPY( DXA->KeyV2String, KeyString, DXA->KeyV2StringBytes ) ;
+		DXA->KeyV2String[ DXA->KeyV2StringBytes ] = '\0' ;
+	}
+
+	// ?w?b?_?Åh??????????Åg???????
+	DXA->ASyncOpenFilePointer = 0 ;
+	DXA->MemoryImage          = NULL ;
+	DXA->ASyncOpenFilePointer = ReadOnlyFileAccessOpen( ArchivePath, FALSE, TRUE, FALSE ) ;
+	if( DXA->ASyncOpenFilePointer == 0 )
+	{
+		return -1 ;
+	}
+
+	// ?t?@?C???p?X????ÅeÅ˜
+	_WCSCPY_S( DXA->FilePath, sizeof( DXA->FilePath ), ArchivePath ) ;
+
+	// ?t?@?C?????T?C?Y????Åg?????
+	ReadOnlyFileAccessSeek( DXA->ASyncOpenFilePointer, 0L, SEEK_END ) ;
+	DXA->MemoryImageSize = ReadOnlyFileAccessTell( DXA->ASyncOpenFilePointer ) ;
+	ReadOnlyFileAccessSeek( DXA->ASyncOpenFilePointer, 0L, SEEK_SET ) ;
+
+	// ?t?@?C????Åg??e??ÅeS??????????Åg????????Å~???????????????m??
+	DXA->MemoryImage = DXALLOC( ( size_t )DXA->MemoryImageSize ) ;
+
+	// ?h?c???o?[?W?Åˆ?ÅgÅh??Åı?Åh????????Åg???????
+	DXA_KeyV2ConvFileRead( &DXA->Head, DXARC_ID_AND_VERSION_SIZE, DXA->ASyncOpenFilePointer, DXA->KeyV2, 0 ) ;
+
+	// ?h?c??????
+	if( DXA->Head.Head != DXAHEAD )
+	{
+		// ?o?[?W?Åˆ?Åg?U??ÅeO??Åf??Å~??
+		ReadOnlyFileAccessSeek( DXA->ASyncOpenFilePointer, 0L, SEEK_SET ) ;
+		DXA_KeyConvFileRead( &DXA->Head, DXARC_ID_AND_VERSION_SIZE, DXA->ASyncOpenFilePointer, DXA->Key, 0 ) ;
+
+		// ?h?c??????
+		if( DXA->Head.Head != DXAHEAD )
+		{
+			// ?o?[?W?Åˆ?Åg?Q??ÅeO??Åf??Å~??
+			_MEMSET( DXA->Key, 0xff, DXA_KEYSTR_LENGTH ) ;
+
+			ReadOnlyFileAccessSeek( DXA->ASyncOpenFilePointer, 0L, SEEK_SET ) ;
+			DXA_KeyConvFileRead( &DXA->Head, DXARC_ID_AND_VERSION_SIZE, DXA->ASyncOpenFilePointer, DXA->Key, 0 ) ;
+
+			// ?o?[?W?Åˆ?Åg?Q??ÅeO???????????Åˆ???G?ÅÒ?[
+			if( DXA->Head.Head != DXAHEAD )
+			{
+				goto ERR ;
+			}
+		}
+	}
+
+	// ?o?[?W?Åˆ?Åg6???~????????????????????
+	if( DXA->Head.Version >= 0x0006 )
+	{
+		DXA->V5Flag = FALSE ;
+
+		// ?o?[?W?Åˆ?Åg????
+		if( DXA->Head.Version > DXAVER )
+		{
+			goto ERR ;
+		}
+
+		// ?o?[?W?Åˆ?Åg???S??????????????Åg????????c?????w?b?_?T?C?Y?????X
+		if( DXA->Head.Version >= DXA_KEYV2_VER )
+		{
+			DXA_KeyV2ConvFileRead( ( BYTE * )&DXA->Head + DXARC_ID_AND_VERSION_SIZE, DXARC_HEAD_VER6_SIZE - DXARC_ID_AND_VERSION_SIZE, DXA->ASyncOpenFilePointer, DXA->KeyV2, DXARC_ID_AND_VERSION_SIZE ) ;
+		}
+		else
+		{
+			DXA_KeyConvFileRead( ( BYTE * )&DXA->Head + DXARC_ID_AND_VERSION_SIZE, DXARC_HEAD_VER6_SIZE - DXARC_ID_AND_VERSION_SIZE, DXA->ASyncOpenFilePointer, DXA->Key, DXARC_ID_AND_VERSION_SIZE ) ;
+		}
+		switch( DXA->Head.CharCodeFormat )
+		{
+		case DX_CHARCODEFORMAT_UHC :
+		case DX_CHARCODEFORMAT_BIG5 :
+		case DX_CHARCODEFORMAT_GB2312 :
+		case DX_CHARCODEFORMAT_SHIFTJIS :
+		case DX_CHARCODEFORMAT_UTF16LE :
+		case DX_CHARCODEFORMAT_UTF16BE :
+		case DX_CHARCODEFORMAT_WINDOWS_1252 :
+		case DX_CHARCODEFORMAT_ISO_IEC_8859_15 :
+		case DX_CHARCODEFORMAT_UTF8 :
+		case DX_CHARCODEFORMAT_UTF32LE :
+		case DX_CHARCODEFORMAT_UTF32BE :
+			DXA->CharCodeFormat = ( int )DXA->Head.CharCodeFormat ;
+			break ;
+
+		default :
+			DXA->CharCodeFormat = DX_CHARCODEFORMAT_SHIFTJIS ;
+			break ;
+		}
+		
+		// ?????e?[?u?????T?C?Y?????????????m??????
+		DXA->Table.Top = ( BYTE * )DXALLOC( DXA->Head.HeadSize ) ;
+		if( DXA->Table.Top == NULL )
+		{
+			goto ERR ;
+		}
+		
+		// ?????e?[?u????????????Åg???????
+		ReadOnlyFileAccessSeek( DXA->ASyncOpenFilePointer, ( LONGLONG )DXA->Head.FileNameTableStartAddress, SEEK_SET ) ;
+		if( DXA->Head.Version >= DXA_KEYV2_VER )
+		{
+			DXA_KeyV2ConvFileRead( DXA->Table.Top, DXA->Head.HeadSize, DXA->ASyncOpenFilePointer, DXA->KeyV2, 0 ) ;
+		}
+		else
+		{
+			DXA_KeyConvFileRead( DXA->Table.Top, DXA->Head.HeadSize, DXA->ASyncOpenFilePointer, DXA->Key, 0 ) ;
+		}
+
+		// ?????e?[?u?????A?h???X???Z?b?g????
+		DXA->Table.NameTable		= DXA->Table.Top ;
+		DXA->Table.FileTable		= DXA->Table.NameTable + DXA->Head.FileTableStartAddress ;
+		DXA->Table.DirectoryTable	= DXA->Table.NameTable + DXA->Head.DirectoryTableStartAddress ;
+
+		// ?J???Åg?g?f?B???N?g?????Z?b?g
+		DXA->CurrentDirectory = ( DXARC_DIRECTORY * )DXA->Table.DirectoryTable ;
+	}
+	else
+	{
+		DXA->V5Flag = TRUE ;
+
+		// ?o?[?W?Åˆ?Åg????
+		if( DXA->HeadV5.Version > DXAVER_VER5 )
+		{
+			goto ERR ;
+		}
+
+		// ?o?[?W?Åˆ?Åg???S??????????????Åg????????c?????w?b?_?T?C?Y?????X
+		if( DXA->HeadV5.Version >= 0x0004 )
+		{
+			DXA_KeyConvFileRead( ( BYTE * )&DXA->HeadV5 + DXARC_ID_AND_VERSION_SIZE, DXARC_HEAD_VER4_SIZE - DXARC_ID_AND_VERSION_SIZE, DXA->ASyncOpenFilePointer, DXA->Key, DXARC_ID_AND_VERSION_SIZE ) ;
+			switch( DXA->HeadV5.CharCodeFormat )
+			{
+			case DX_CHARCODEFORMAT_UHC :
+			case DX_CHARCODEFORMAT_BIG5 :
+			case DX_CHARCODEFORMAT_GB2312 :
+			case DX_CHARCODEFORMAT_SHIFTJIS :
+			case DX_CHARCODEFORMAT_UTF16LE :
+			case DX_CHARCODEFORMAT_UTF16BE :
+			case DX_CHARCODEFORMAT_WINDOWS_1252 :
+			case DX_CHARCODEFORMAT_ISO_IEC_8859_15 :
+			case DX_CHARCODEFORMAT_UTF8 :
+			case DX_CHARCODEFORMAT_UTF32LE :
+			case DX_CHARCODEFORMAT_UTF32BE :
+				DXA->CharCodeFormat = ( int )DXA->HeadV5.CharCodeFormat ;
+				break ;
+
+			default :
+				DXA->CharCodeFormat = DX_CHARCODEFORMAT_SHIFTJIS ;
+				break ;
+			}
+		}
+		else
+		{
+			DXA_KeyConvFileRead( ( BYTE * )&DXA->HeadV5 + DXARC_ID_AND_VERSION_SIZE, DXARC_HEAD_VER3_SIZE - DXARC_ID_AND_VERSION_SIZE, DXA->ASyncOpenFilePointer, DXA->Key, DXARC_ID_AND_VERSION_SIZE ) ;
+			DXA->HeadV5.CharCodeFormat = DX_CHARCODEFORMAT_SHIFTJIS ;
+			DXA->CharCodeFormat        = DX_CHARCODEFORMAT_SHIFTJIS ;
+		}
+		
+		// ?????e?[?u?????T?C?Y?????????????m??????
+		DXA->Table.Top = ( BYTE * )DXALLOC( DXA->HeadV5.HeadSize ) ;
+		if( DXA->Table.Top == NULL )
+		{
+			goto ERR ;
+		}
+		
+		// ?????e?[?u????????????Åg???????
+		ReadOnlyFileAccessSeek( DXA->ASyncOpenFilePointer, DXA->HeadV5.FileNameTableStartAddress, SEEK_SET ) ;
+		if( DXA->HeadV5.Version >= 0x0005 )
+		{
+			DXA_KeyConvFileRead( DXA->Table.Top, DXA->HeadV5.HeadSize, DXA->ASyncOpenFilePointer, DXA->Key, 0 ) ;
+		}
+		else
+		{
+			DXA_KeyConvFileRead( DXA->Table.Top, DXA->HeadV5.HeadSize, DXA->ASyncOpenFilePointer, DXA->Key ) ;
+		}
+
+		// ?????e?[?u?????A?h???X???Z?b?g????
+		DXA->Table.NameTable		= DXA->Table.Top ;
+		DXA->Table.FileTable		= DXA->Table.NameTable + DXA->HeadV5.FileTableStartAddress ;
+		DXA->Table.DirectoryTable	= DXA->Table.NameTable + DXA->HeadV5.DirectoryTableStartAddress ;
+
+		// ?J???Åg?g?f?B???N?g?????Z?b?g
+		DXA->CurrentDirectoryV5 = ( DXARC_DIRECTORY_VER5 * )DXA->Table.DirectoryTable ;
+	}
+
+	// ÅÒ??????t?@?C??????????Åg???????
+	ReadOnlyFileAccessSeek( DXA->ASyncOpenFilePointer, 0L, SEEK_SET ) ;
+	ReadOnlyFileAccessRead( DXA->MemoryImage, ( size_t )DXA->MemoryImageSize, 1, DXA->ASyncOpenFilePointer );
+
+	// ?t?@?C??Åh?Åg????I?[?v?ÅgÅfÅı?????????Å}?????Z?b?g?????ÅN??
+	DXA->ASyncOpenFlag = TRUE ;
+
+	DXA->MemoryOpenFlag					= TRUE ;			// ???????C???[?W?????J?????????t?ÅÒ?O???Åò????
+	DXA->UserMemoryImageFlag			= FALSE ;			// ?Åı?[?U?[???C???[?W?????J?????????????????????t?ÅÒ?O??Åg|??
+	DXA->MemoryImageCopyFlag			= FALSE ;			// ???????C???[?W???R?s?[?????g?p?????????t?ÅÒ?O??Åg|??
+	DXA->MemoryImageReadOnlyFlag        = FALSE ;			// ???????C???[?W??Åg??????????p?????????????????t?ÅÒ?O??Åg|??
+
+	// Åg????I?[?v?Åg?????Åˆ???Å}?Å}???J???I????????Åe???
+	if( ASyncThread == FALSE )
+	{
+		while( DXA_CheckIdle( DXA ) == FALSE )
+		{
+			Thread_Sleep( 0 ) ;
+		}
+	}
+
+	// ?I??
+	return 0 ;
+
+ERR :
+	if( DXA->ASyncOpenFilePointer )
+	{
+		ReadOnlyFileAccessClose( DXA->ASyncOpenFilePointer );
+		DXA->ASyncOpenFilePointer = 0;
+	}
+
+	if( DXA->MemoryImage )
+	{
+		DXFREE( DXA->MemoryImage );
+		DXA->MemoryImage = 0;
+	}
+
+	DXA->ASyncOpenFlag = FALSE ;
+
+	// ?I??
+	return -1 ;
+}
+
+// ?A?[?J?C?u?t?@?C?????J??( 0:???ÅÄ  -1:??Åhs )
+extern int DXA_OpenArchiveFromFile( DXARC *DXA, const wchar_t *ArchivePath, const char *KeyString )
+{
+	// ???????????????A?[?J?C?u???J???????????Åˆ???G?ÅÒ?[
+	if( DXA->WinFilePointer__ != 0 || DXA->MemoryImage )
+	{
+		return -1 ;
+	}
+
+	// ?w?b?_???ÅÒ??ÅÒ?
+	_MEMSET( &DXA->Head, 0, sizeof( DXA->Head ) ) ;
+
+	// ?A?[?J?C?u?t?@?C?????J?Å}??????????
+	DXA->WinFilePointer__ = ReadOnlyFileAccessOpen( ArchivePath, FALSE, TRUE, FALSE ) ;
+	if( DXA->WinFilePointer__ == 0 )
+	{
+		return -1 ;
+	}
+
+	// ?t?@?C???p?X????ÅeÅ˜
+	_WCSCPY_S( DXA->FilePath, sizeof( DXA->FilePath ), ArchivePath ) ;
+
+	// ????????
+	DXA_KeyCreate( KeyString, DXA->Key ) ;
+	DXA_KeyV2Create( KeyString, DXA->KeyV2 ) ;
+
+	// ???Å˜????????ÅeÅ˜
+	if( KeyString == NULL )
+	{
+		DXA->KeyV2String[ 0 ] = '\0' ;
+		DXA->KeyV2StringBytes = 0 ;
+	}
+	else
+	{
+		DXA->KeyV2StringBytes = CL_strlen( DX_CHARCODEFORMAT_ASCII, KeyString ) ;
+		if( DXA->KeyV2StringBytes > DXA_KEYV2STR_LENGTH )
+		{
+			DXA->KeyV2StringBytes = DXA_KEYV2STR_LENGTH ;
+		}
+		_MEMCPY( DXA->KeyV2String, KeyString, DXA->KeyV2StringBytes ) ;
+		DXA->KeyV2String[ DXA->KeyV2StringBytes ] = '\0' ;
+	}
+
+	// ?h?c???o?[?W?Åˆ?ÅgÅh??Åı?Åh????????Åg???????
+	DXA_KeyV2ConvFileRead( &DXA->Head, DXARC_ID_AND_VERSION_SIZE, DXA->WinFilePointer__, DXA->KeyV2, 0 ) ;
+
+	// ?h?c??????
+	if( DXA->Head.Head != DXAHEAD )
+	{
+		// ?o?[?W?Åˆ?Åg?U??ÅeO??Åf??Å~??
+		ReadOnlyFileAccessSeek( DXA->WinFilePointer__, 0L, SEEK_SET ) ;
+		DXA_KeyConvFileRead( &DXA->Head, DXARC_ID_AND_VERSION_SIZE, DXA->WinFilePointer__, DXA->Key, 0 ) ;
+
+		// ?h?c??????
+		if( DXA->Head.Head != DXAHEAD )
+		{
+			// ?o?[?W?Åˆ?Åg?Q??ÅeO??Åf??Å~??
+			_MEMSET( DXA->Key, 0xff, DXA_KEYSTR_LENGTH ) ;
+
+			ReadOnlyFileAccessSeek( DXA->WinFilePointer__, 0L, SEEK_SET ) ;
+			DXA_KeyConvFileRead( &DXA->Head, DXARC_ID_AND_VERSION_SIZE, DXA->WinFilePointer__, DXA->Key, 0 ) ;
+
+			// ?o?[?W?Åˆ?Åg?Q??ÅeO???????????Åˆ???G?ÅÒ?[
+			if( DXA->Head.Head != DXAHEAD )
+			{
+				goto ERR ;
+			}
+		}
+	}
+
+	// ?o?[?W?Åˆ?Åg6???~????????????????????
+	if( DXA->Head.Version >= 0x0006 )
+	{
+		DXA->V5Flag = FALSE ;
+
+		// ?o?[?W?Åˆ?Åg????
+		if( DXA->Head.Version > DXAVER )
+		{
+			goto ERR ;
+		}
+
+		if( DXA->Head.Version >= DXA_KEYV2_VER )
+		{
+			DXA_KeyV2ConvFileRead( ( BYTE * )&DXA->Head + DXARC_ID_AND_VERSION_SIZE, DXARC_HEAD_VER6_SIZE - DXARC_ID_AND_VERSION_SIZE, DXA->WinFilePointer__, DXA->KeyV2, DXARC_ID_AND_VERSION_SIZE ) ;
+		}
+		else
+		{
+			DXA_KeyConvFileRead( ( BYTE * )&DXA->Head + DXARC_ID_AND_VERSION_SIZE, DXARC_HEAD_VER6_SIZE - DXARC_ID_AND_VERSION_SIZE, DXA->WinFilePointer__, DXA->Key, DXARC_ID_AND_VERSION_SIZE ) ;
+		}
+		switch( DXA->Head.CharCodeFormat )
+		{
+		case DX_CHARCODEFORMAT_UHC :
+		case DX_CHARCODEFORMAT_BIG5 :
+		case DX_CHARCODEFORMAT_GB2312 :
+		case DX_CHARCODEFORMAT_SHIFTJIS :
+		case DX_CHARCODEFORMAT_UTF16LE :
+		case DX_CHARCODEFORMAT_UTF16BE :
+		case DX_CHARCODEFORMAT_WINDOWS_1252 :
+		case DX_CHARCODEFORMAT_ISO_IEC_8859_15 :
+		case DX_CHARCODEFORMAT_UTF8 :
+		case DX_CHARCODEFORMAT_UTF32LE :
+		case DX_CHARCODEFORMAT_UTF32BE :
+			DXA->CharCodeFormat = ( int )DXA->Head.CharCodeFormat ;
+			break ;
+
+		default :
+			DXA->CharCodeFormat = DX_CHARCODEFORMAT_SHIFTJIS ;
+			break ;
+		}
+
+		// ?????e?[?u?????T?C?Y?????????????m??????
+		DXA->Table.Top = ( BYTE * )DXALLOC( DXA->Head.HeadSize ) ;
+		if( DXA->Table.Top == NULL )
+		{
+			goto ERR ;
+		}
+		
+		// ?????e?[?u????????????Åg???????
+		ReadOnlyFileAccessSeek( DXA->WinFilePointer__, ( LONGLONG )DXA->Head.FileNameTableStartAddress, SEEK_SET ) ;
+		if( DXA->Head.Version >= DXA_KEYV2_VER )
+		{
+			DXA_KeyV2ConvFileRead( DXA->Table.Top, DXA->Head.HeadSize, DXA->WinFilePointer__, DXA->KeyV2, 0 ) ;
+		}
+		else
+		{
+			DXA_KeyConvFileRead( DXA->Table.Top, DXA->Head.HeadSize, DXA->WinFilePointer__, DXA->Key, 0 ) ;
+		}
+
+		// ?????e?[?u?????A?h???X???Z?b?g????
+		DXA->Table.NameTable		= DXA->Table.Top ;
+		DXA->Table.FileTable		= DXA->Table.NameTable + DXA->Head.FileTableStartAddress ;
+		DXA->Table.DirectoryTable	= DXA->Table.NameTable + DXA->Head.DirectoryTableStartAddress ;
+
+		// ?J???Åg?g?f?B???N?g?????Z?b?g
+		DXA->CurrentDirectory = ( DXARC_DIRECTORY * )DXA->Table.DirectoryTable ;
+	}
+	else
+	{
+		DXA->V5Flag = TRUE ;
+
+		// ?o?[?W?Åˆ?Åg????
+		if( DXA->HeadV5.Version > DXAVER_VER5 )
+		{
+			goto ERR ;
+		}
+
+		// ?o?[?W?Åˆ?Åg???S??????????????Åg????????c?????w?b?_?T?C?Y?????X
+		if( DXA->HeadV5.Version >= 0x0004 )
+		{
+			DXA_KeyConvFileRead( ( BYTE * )&DXA->HeadV5 + DXARC_ID_AND_VERSION_SIZE, DXARC_HEAD_VER4_SIZE - DXARC_ID_AND_VERSION_SIZE, DXA->WinFilePointer__, DXA->Key, DXARC_ID_AND_VERSION_SIZE ) ;
+			switch( DXA->HeadV5.CharCodeFormat )
+			{
+			case DX_CHARCODEFORMAT_UHC :
+			case DX_CHARCODEFORMAT_BIG5 :
+			case DX_CHARCODEFORMAT_GB2312 :
+			case DX_CHARCODEFORMAT_SHIFTJIS :
+			case DX_CHARCODEFORMAT_UTF16LE :
+			case DX_CHARCODEFORMAT_UTF16BE :
+			case DX_CHARCODEFORMAT_WINDOWS_1252 :
+			case DX_CHARCODEFORMAT_ISO_IEC_8859_15 :
+			case DX_CHARCODEFORMAT_UTF8 :
+			case DX_CHARCODEFORMAT_UTF32LE :
+			case DX_CHARCODEFORMAT_UTF32BE :
+				DXA->CharCodeFormat = ( int )DXA->HeadV5.CharCodeFormat ;
+				break ;
+
+			default :
+				DXA->CharCodeFormat = DX_CHARCODEFORMAT_SHIFTJIS ;
+				break ;
+			}
+		}
+		else
+		{
+			DXA_KeyConvFileRead( ( BYTE * )&DXA->HeadV5 + DXARC_ID_AND_VERSION_SIZE, DXARC_HEAD_VER3_SIZE - DXARC_ID_AND_VERSION_SIZE, DXA->WinFilePointer__, DXA->Key, DXARC_ID_AND_VERSION_SIZE ) ;
+			DXA->HeadV5.CharCodeFormat = DX_CHARCODEFORMAT_SHIFTJIS ;
+			DXA->CharCodeFormat        = DX_CHARCODEFORMAT_SHIFTJIS ;
+		}
+
+		// ?????e?[?u?????T?C?Y?????????????m??????
+		DXA->Table.Top = ( BYTE * )DXALLOC( DXA->HeadV5.HeadSize ) ;
+		if( DXA->Table.Top == NULL )
+		{
+			goto ERR ;
+		}
+		
+		// ?????e?[?u????????????Åg???????
+		ReadOnlyFileAccessSeek( DXA->WinFilePointer__, DXA->HeadV5.FileNameTableStartAddress, SEEK_SET ) ;
+		if( DXA->HeadV5.Version >= 0x0005 )
+		{
+			DXA_KeyConvFileRead( DXA->Table.Top, DXA->HeadV5.HeadSize, DXA->WinFilePointer__, DXA->Key, 0 ) ;
+		}
+		else
+		{
+			DXA_KeyConvFileRead( DXA->Table.Top, DXA->HeadV5.HeadSize, DXA->WinFilePointer__, DXA->Key ) ;
+		}
+
+		// ?????e?[?u?????A?h???X???Z?b?g????
+		DXA->Table.NameTable		= DXA->Table.Top ;
+		DXA->Table.FileTable		= DXA->Table.NameTable + DXA->HeadV5.FileTableStartAddress ;
+		DXA->Table.DirectoryTable	= DXA->Table.NameTable + DXA->HeadV5.DirectoryTableStartAddress ;
+
+		// ?J???Åg?g?f?B???N?g?????Z?b?g
+		DXA->CurrentDirectoryV5 = ( DXARC_DIRECTORY_VER5 * )DXA->Table.DirectoryTable ;
+	}
+
+	DXA->MemoryOpenFlag					= FALSE ;			// ???????C???[?W?????J?????????t?ÅÒ?O??Åg|??
+	DXA->UserMemoryImageFlag			= FALSE ;			// ?Åı?[?U?[???C???[?W?????J?????????????????????t?ÅÒ?O??Åg|??
+	DXA->MemoryImageCopyFlag			= FALSE ;			// ???????C???[?W???R?s?[?????g?p?????????t?ÅÒ?O??Åg|??
+	DXA->MemoryImageReadOnlyFlag        = FALSE ;			// ???????C???[?W??Åg??????????p?????????????????t?ÅÒ?O??Åg|??
+
+	// ?I??
+	return 0 ;
+
+ERR :
+	if( DXA->WinFilePointer__ != 0 )
+	{
+		ReadOnlyFileAccessClose( DXA->WinFilePointer__ ) ;
+		DXA->WinFilePointer__ = 0 ;
+	}
+
+	if( DXA->Table.Top != NULL )
+	{
+		DXFREE( DXA->Table.Top ) ;
+		DXA->Table.Top = NULL ;
+	}
+	
+	// ?I??
+	return -1 ;
+}
+
+// ?A?[?J?C?u?t?@?C???????Å˜??
+extern int DXA_CloseArchive( DXARC *DXA )
+{
+	// ???????Å˜????????ÅÒ????????I??
+	if( DXA->WinFilePointer__ == 0 && DXA->MemoryImage == NULL )
+	{
+		return 0 ;
+	}
+
+	// Åh?Åg???Åg????I?[?v?ÅgÅfÅı?????Åˆ???Å}?Å}???J???I????????Åe???
+	if( DXA->ASyncOpenFlag == TRUE )
+	{
+		while( DXA_CheckIdle( DXA ) == FALSE )
+		{
+			Thread_Sleep( 0 ) ;
+		}
+	}
+
+	// ???????????J????????????????????????????
+	if( DXA->MemoryOpenFlag == TRUE )
+	{
+		// ?A?[?J?C?u?v???O?ÅÒ????????????Åg????????????Åˆ???????????????Åˆ????????????
+		if( DXA->UserMemoryImageFlag == TRUE )
+		{
+			// ?Åı?[?U?[????Ågn???????f?[?^?????????Åˆ
+
+			// ?A?[?J?C?u?C???[?W???R?s?[?????g?p???????????Åˆ??ÅfP????ÅÒ???????
+			if( DXA->MemoryImageCopyFlag )
+			{
+				if( DXA->MemoryImage != NULL )
+				{
+					DXFREE( DXA->MemoryImage ) ;
+					DXA->MemoryImage = NULL ;
+				}
+			}
+			else
+			{
+				if( DXA->MemoryImageReadOnlyFlag )
+				{
+					// Åg??????????p?????Åˆ???????e?[?u???p???m??????????????????ÅÒ???
+					if( DXA->Table.Top != NULL )
+					{
+						DXFREE( DXA->Table.Top ) ;
+						DXA->Table.Top = NULL ;
+					}
+				}
+				else
+				{
+					// Ågn?????????????A?h???X????Åg??e??Åf????g?p???????????Åˆ??
+					// Åh?Åg]?????f?[?^??????????
+					if( DXA->V5Flag == FALSE )
+					{
+						char KeyV2String[ DXA_KEYV2_STRING_MAXLENGTH ] ;
+						DXA_DirectoryKeyConv( DXA, ( DXARC_DIRECTORY * )DXA->Table.DirectoryTable, KeyV2String ) ;
+
+						if( DXA->Head.Version >= DXA_KEYV2_VER )
+						{
+							DXA_KeyV2Conv( DXA->Table.Top, DXA->Head.HeadSize, 0, DXA->KeyV2 ) ;
+						}
+						else
+						{
+							DXA_KeyConv( DXA->Table.Top, DXA->Head.HeadSize, 0, DXA->Key ) ;
+						}
+					}
+					else
+					{
+						if( DXA->HeadV5.Version >= 0x0005 )
+						{
+							DXA_DirectoryKeyConvV5( DXA, ( DXARC_DIRECTORY_VER5 * )DXA->Table.DirectoryTable ) ;
+							DXA_KeyConv( DXA->Table.Top, DXA->HeadV5.HeadSize, 0, DXA->Key ) ;
+						}
+						else
+						{
+							DXA_KeyConv( DXA->MemoryImage, DXA->MemoryImageSize, 0, DXA->Key ) ;
+						}
+					}
+				}
+			}
+		}
+		else
+		{
+			// ?A?[?J?C?u?v???O?ÅÒ????????????Åg????????????Åˆ
+
+			// ?m???????????????????J??????
+			DXFREE( DXA->Table.Top ) ;
+			DXFREE( DXA->MemoryImage ) ;
+		}
+	}
+	else
+	{
+		// ?A?[?J?C?u?t?@?C???????Å˜??
+		ReadOnlyFileAccessClose( DXA->WinFilePointer__ ) ;
+
+		// ?????e?[?u?????iÅh[????????????????????ÅÒ???
+		DXFREE( DXA->Table.Top ) ;
+	}
+
+	// ?ÅÒ??ÅÒ?
+	_MEMSET( DXA, 0, sizeof( DXARC ) ) ;
+
+	// ?I??
+	return 0 ;
+}
+
+// ?A?[?J?C?uÅg????f?B???N?g???p?X?????X????( 0:???ÅÄ  -1:??Åhs )
+static int DXA_ChangeCurrentDirectoryFast( DXARC *DXA, DXARC_SEARCHDATA *SearchData )
+{
+	int i, j, k, Num ;
+	BYTE *NameData, *PathData ;
+	WORD PackNum, Parity ;
+	DWORD FileHeadSize ;
+
+	// Åh?Åg???Åg????I?[?v?ÅgÅfÅı?????Åˆ???Å}?Å}???J???I????????Åe???
+	if( DXA->ASyncOpenFlag == TRUE )
+	{
+		while( DXA_CheckIdle( DXA ) == FALSE )
+		{
+			Thread_Sleep( 0 ) ;
+		}
+	}
+
+	PackNum  = SearchData->PackNum ;
+	Parity   = SearchData->Parity ;
+	PathData = SearchData->FileName ;
+
+	// ?J???Åg?g?f?B???N?g??????Åg??????f?B???N?g????ÅfT??
+	if( DXA->V5Flag )
+	{
+		DXARC_FILEHEAD_VER5 *FileH ;
+
+		FileH        = ( DXARC_FILEHEAD_VER5 * )( DXA->Table.FileTable + DXA->CurrentDirectoryV5->FileHeadAddress ) ;
+		Num          = ( int )DXA->CurrentDirectoryV5->FileHeadNum ;
+		FileHeadSize = ( DWORD )( DXA->HeadV5.Version >= 0x0002 ? DXARC_FILEHEAD_VER2_SIZE : DXARC_FILEHEAD_VER1_SIZE ) ;
+		for( i = 0 ; i < Num ; i ++, FileH = (DXARC_FILEHEAD_VER5 *)( (BYTE *)FileH + FileHeadSize ) )
+		{
+			// ?f?B???N?g???`?F?b?N
+			if( ( FileH->Attributes & FILE_ATTRIBUTE_DIRECTORY ) == 0 )
+			{
+				continue ;
+			}
+
+			// ?Å˜?????Åh???p???e?B?`?F?b?N
+			NameData = DXA->Table.NameTable + FileH->NameAddress ;
+			if( PackNum != ( ( WORD * )NameData )[ 0 ] ||
+				Parity  != ( ( WORD * )NameData )[ 1 ] )
+			{
+				continue ;
+			}
+
+			// ?Å˜?????`?F?b?N
+			NameData += 4 ;
+			for( j = 0, k = 0 ; j < PackNum ; j ++, k += 4 )
+			{
+				if( *( ( DWORD * )&PathData[ k ] ) != *( ( DWORD * )&NameData[ k ] ) )
+				{
+					break ;
+				}
+			}
+
+			// ÅgK?Åˆ?????f?B???N?g?????????????Å}?Å}???I??
+			if( PackNum == j )
+			{
+				break ;
+			}
+		}
+
+		// ???????????G?ÅÒ?[
+		if( i == Num )
+		{
+			return -1 ;
+		}
+
+		// ?????????J???Åg?g?f?B???N?g???????X
+		DXA->CurrentDirectoryV5 = ( DXARC_DIRECTORY_VER5 * )( DXA->Table.DirectoryTable + FileH->DataAddress ) ;
+	}
+	else
+	{
+		DXARC_FILEHEAD *FileH ;
+
+		FileH        = ( DXARC_FILEHEAD * )( DXA->Table.FileTable + DXA->CurrentDirectory->FileHeadAddress ) ;
+		Num          = ( int )DXA->CurrentDirectory->FileHeadNum ;
+		FileHeadSize = DXARC_FILEHEAD_VER6_SIZE ;
+		for( i = 0 ; i < Num ; i ++, FileH = (DXARC_FILEHEAD *)( (BYTE *)FileH + FileHeadSize ) )
+		{
+			// ?f?B???N?g???`?F?b?N
+			if( ( FileH->Attributes & FILE_ATTRIBUTE_DIRECTORY ) == 0 )
+			{
+				continue ;
+			}
+
+			// ?Å˜?????Åh???p???e?B?`?F?b?N
+			NameData = DXA->Table.NameTable + FileH->NameAddress ;
+			if( PackNum != ( ( WORD * )NameData )[ 0 ] ||
+				Parity  != ( ( WORD * )NameData )[ 1 ] )
+			{
+				continue ;
+			}
+
+			// ?Å˜?????`?F?b?N
+			NameData += 4 ;
+			for( j = 0, k = 0 ; j < PackNum ; j ++, k += 4 )
+			{
+				if( *( ( DWORD * )&PathData[ k ] ) != *( ( DWORD * )&NameData[ k ] ) )
+				{
+					break ;
+				}
+			}
+
+			// ÅgK?Åˆ?????f?B???N?g?????????????Å}?Å}???I??
+			if( PackNum == j )
+			{
+				break ;
+			}
+		}
+
+		// ???????????G?ÅÒ?[
+		if( i == Num )
+		{
+			return -1 ;
+		}
+
+		// ?????????J???Åg?g?f?B???N?g???????X
+		DXA->CurrentDirectory = ( DXARC_DIRECTORY * )( DXA->Table.DirectoryTable + FileH->DataAddress ) ;
+	}
+
+	// ?????I??
+	return 0 ;
+}
+
+// ?A?[?J?C?uÅg????f?B???N?g???p?X?????X????( 0:???ÅÄ  -1:??Åhs )
+extern int DXA_ChangeCurrentDir( DXARC *DXA, int CharCodeFormat, const char *DirPath )
+{
+	BYTE TempBuffer[ 4096 ] ;
+	const BYTE *DirPathB ;
+
+	// ?Å˜???R?[?h?`?????????????Åˆ??????????
+	if( CharCodeFormat != DXA->CharCodeFormat )
+	{
+		ConvString( DirPath, -1, CharCodeFormat, ( char * )TempBuffer, sizeof( TempBuffer ), DXA->CharCodeFormat ) ;
+		DirPathB = TempBuffer ;
+	}
+	else
+	{
+		DirPathB = ( const BYTE * )DirPath ;
+	}
+
+	return DXA_ChangeCurrentDirectoryBase( DXA, DirPathB, true ) ;
+}
+
+// ?A?[?J?C?uÅg????f?B???N?g???p?X?????X????( 0:???ÅÄ  -1:??Åhs )
+static int DXA_ChangeCurrentDirectoryBase( DXARC *DXA, const BYTE *DirectoryPath, bool ErrorIsDirectoryReset, DXARC_SEARCHDATA *LastSearchData )
+{
+	DXARC_DIRECTORY *OldDir ;
+	DXARC_SEARCHDATA SearchData ;
+
+	// Åh?Åg???Åg????I?[?v?ÅgÅfÅı?????Åˆ???Å}?Å}???J???I????????Åe???
+	if( DXA->ASyncOpenFlag == TRUE )
+	{
+		while( DXA_CheckIdle( DXA ) == FALSE )
+		{
+			Thread_Sleep( 0 ) ;
+		}
+	}
+
+	// ?Å}?Å}?????????p?X????????????
+	if( CL_strcmp_str2_ascii( DXA->CharCodeFormat, ( const char * )DirectoryPath, ( const char * )Ascii_DotStr ) == 0 )
+	{
+		return 0 ;
+	}
+
+	// ?w\ or /?x?????????Åˆ?????[?g?f?B???N?g????????
+	if( CL_strcmp_str2_ascii( DXA->CharCodeFormat, ( const char * )DirectoryPath, ( const char * )Ascii_EnStr    ) == 0 ||
+		CL_strcmp_str2_ascii( DXA->CharCodeFormat, ( const char * )DirectoryPath, ( const char * )Ascii_SlashStr ) == 0 )
+	{
+		if( DXA->V5Flag )
+		{
+			DXA->CurrentDirectoryV5 = ( DXARC_DIRECTORY_VER5 * )DXA->Table.DirectoryTable ;
+		}
+		else
+		{
+			DXA->CurrentDirectory   = ( DXARC_DIRECTORY      * )DXA->Table.DirectoryTable ;
+		}
+		return 0 ;
+	}
+
+	// ÅÒ???????ÅÒ??????p?X??????????????????
+	if( CL_strcmp_str2_ascii( DXA->CharCodeFormat, ( const char * )DirectoryPath, ( const char * )Ascii_DoubleDotStr ) == 0 )
+	{
+		if( DXA->V5Flag )
+		{
+			// ???[?g?f?B???N?g???????????G?ÅÒ?[
+			if( DXA->CurrentDirectoryV5->ParentDirectoryAddress == 0xffffffff ) return -1 ;
+			
+			// ?e?f?B???N?g????????????????????????
+			DXA->CurrentDirectoryV5 = ( DXARC_DIRECTORY_VER5 * )( DXA->Table.DirectoryTable + DXA->CurrentDirectoryV5->ParentDirectoryAddress ) ;
+		}
+		else
+		{
+			// ???[?g?f?B???N?g???????????G?ÅÒ?[
+			if( DXA->CurrentDirectory->ParentDirectoryAddress == NONE_PAL ) return -1 ;
+			
+			// ?e?f?B???N?g????????????????????????
+			DXA->CurrentDirectory   = ( DXARC_DIRECTORY      * )( DXA->Table.DirectoryTable + DXA->CurrentDirectory->ParentDirectoryAddress ) ;
+		}
+		return 0 ;
+	}
+
+	// ???????O?????Åˆ???wÅf?????ÅeO???f?B???N?g????ÅfT??
+	
+	// ???X??ÅeO???f?B???N?g??????ÅeÅ˜?????ÅN??
+	OldDir = DXA->CurrentDirectory ;
+
+	// ?p?XÅfÅı???w\?x??????????????????????????
+	if( CL_strchr( DXA->CharCodeFormat, ( const char * )DirectoryPath, '\\' ) == NULL &&
+		CL_strchr( DXA->CharCodeFormat, ( const char * )DirectoryPath, '/'  ) == NULL )
+	{
+		// ?t?@?C?????????????p???`????????????
+		DXA_ConvSearchData( DXA, &SearchData, DirectoryPath, NULL ) ;
+
+		// ?f?B???N?g???????X
+		if( DXA_ChangeCurrentDirectoryFast( DXA, &SearchData ) < 0 ) goto ERR ;
+	}
+	else
+	{
+		// \ or / ?????????Åˆ???q???????f?B???N?g???????????????X????????
+		int i ;
+		int StrLength ;
+		int CharBytes ;
+		int CharBytes2 ;
+		DWORD CharCode ;
+		DWORD CharCode2 ;
+
+		i = 0 ;
+
+		// ???[?v
+		for(;;)
+		{
+			// ?Å˜????????Åg?????
+			DXA_ConvSearchData( DXA, &SearchData, &DirectoryPath[ i ], &StrLength ) ;
+			i += StrLength ;
+
+			// ?????ÅÒ??Åf[?? \ or / ?????????Åˆ?????[?g?f?B???N?g??????????
+			CharCode = GetCharCode( ( const char * )&DirectoryPath[ i ], DXA->CharCodeFormat, &CharBytes ) ;
+			if( StrLength == 0 && ( CharCode == '\\' || CharCode == '/' ) )
+			{
+				BYTE EnStr[ 16 ] ;
+
+				ConvString( ( const char * )Ascii_EnStr, -1, DX_CHARCODEFORMAT_ASCII, ( char * )EnStr, sizeof( EnStr ), DXA->CharCodeFormat ) ;
+				DXA_ChangeCurrentDirectoryBase( DXA, EnStr, false ) ;
+			}
+			else
+			{
+				// ???????O?????Åˆ????Åf????f?B???N?g?????X
+				if( DXA_ChangeCurrentDirectoryFast( DXA, &SearchData ) < 0 )
+				{
+					// ?G?ÅÒ?[???N?????A?X???G?ÅÒ?[???N?????????????f?B???N?g??????????
+					// ?t?ÅÒ?O???Åò???????????Åˆ???????f?B???N?g????????
+					if( ErrorIsDirectoryReset == true )
+					{
+						DXA->CurrentDirectory = OldDir ;
+					}
+
+					// ?G?ÅÒ?[?I??
+					goto ERR ;
+				}
+			}
+
+			// ?????IÅf[?Å˜?????I?????????Åˆ?????[?v????Åh?????
+			// ?Åh?????? \ or / ???????????Åˆ?????[?v????Åh?????
+			if( CharCode == '\0' )
+			{
+				break ;
+			}
+			else
+			{
+				CharCode2 = GetCharCode( ( const char * )&DirectoryPath[ i + CharBytes ], DXA->CharCodeFormat, &CharBytes2 ) ;
+				if( ( CharCode == '\\' && CharCode2 == '\0' ) ||
+					( CharCode == '/'  && CharCode2 == '\0' ) )
+				{
+					break ;
+				}
+			}
+			i += CharBytes ;
+		}
+	}
+
+	if( LastSearchData != NULL )
+	{
+		_MEMCPY( LastSearchData->FileName, SearchData.FileName, ( size_t )( SearchData.PackNum * 4 ) ) ;
+		LastSearchData->Parity  = SearchData.Parity ;
+		LastSearchData->PackNum = SearchData.PackNum ;
+	}
+
+	// ?????I??
+	return 0 ;
+
+ERR:
+	if( LastSearchData != NULL )
+	{
+		_MEMCPY( LastSearchData->FileName, SearchData.FileName, ( size_t )( SearchData.PackNum * 4 ) ) ;
+		LastSearchData->Parity  = SearchData.Parity ;
+		LastSearchData->PackNum = SearchData.PackNum ;
+	}
+
+	// ?G?ÅÒ?[?I??
+	return -1 ;
+}
+
+// ?J???Åg?g?f?B???N?g?????????wÅf????t?@?C???????o?[?W?Åˆ?Åg?Q?p???Å˜???????????????A????Åfl???Å˜??????Åf???( ÅfP???FByte )( FileString ?? DXA_KEYV2_STRING_MAXLENGTH ??Åf??????K?v )
+static size_t DXA_CreateKeyV2FileString( DXARC *DXA, DXARC_DIRECTORY *Directory, DXARC_FILEHEAD *FileHead, BYTE *FileString )
+{
+	size_t StartAddr ;
+
+	// ???ÅÒ???p?X???[?h???Å˜???????Z?b?g
+	if( DXA->KeyV2StringBytes != 0 )
+	{
+		_MEMCPY( FileString, DXA->KeyV2String, DXA->KeyV2StringBytes ) ;
+		FileString[ DXA->KeyV2StringBytes ] = '\0' ;
+		StartAddr = DXA->KeyV2StringBytes ;
+	}
+	else
+	{
+		FileString[ 0 ] = '\0' ;
+		StartAddr = 0 ;
+	}
+
+	// ?????t?@?C???????Å˜???????Z?b?g
+	CL_strcat_s( DXA->CharCodeFormat, ( char * )&FileString[ StartAddr ], DXA_KEYV2_STRING_MAXLENGTH - StartAddr, ( char * )( DXA->Table.NameTable + FileHead->NameAddress + 4 ) ) ;
+
+	// ?????????f?B???N?g?????Å˜???????Z?b?g
+	if( Directory->ParentDirectoryAddress != NONE_PAL )
+	{
+		do
+		{
+			CL_strcat_s( DXA->CharCodeFormat, ( char * )&FileString[ StartAddr ], DXA_KEYV2_STRING_MAXLENGTH - StartAddr, ( char * )( DXA->Table.NameTable + ( ( DXARC_FILEHEAD * )( DXA->Table.FileTable + Directory->DirectoryAddress ) )->NameAddress + 4 ) ) ;
+			Directory = ( DXARC_DIRECTORY * )( DXA->Table.DirectoryTable + Directory->ParentDirectoryAddress ) ;
+		}while( Directory->ParentDirectoryAddress != NONE_PAL ) ;
+	}
+
+	return StartAddr + CL_strlen( DXA->CharCodeFormat, ( char * )&FileString[ StartAddr ] ) * GetCharCodeFormatUnitSize( DXA->CharCodeFormat ) ;
+}
+
+// ?A?[?J?C?uÅg????J???Åg?g?f?B???N?g???p?X????Åg?????
+//extern int DXA_GetCurrentDir( DXARC *DXA, char *DirPathBuffer, int BufferSize )
+//{
+//	char DirPath[FILEPATH_MAX] ;
+//	int Depth, i ;
+//
+//	// Åh?Åg???Åg????I?[?v?ÅgÅfÅı?????Åˆ???Å}?Å}???J???I????????Åe???
+//	if( DXA->ASyncOpenFlag == TRUE )
+//	{
+//		while( DXA_CheckIdle( DXA ) == FALSE )
+//		{
+//			Thread_Sleep( 0 ) ;
+//		}
+//	}
+//
+//	if( DXA->V5Flag )
+//	{
+//		DXARC_DIRECTORY_VER5 *Dir[200], *DirTempP ;
+//
+//		// ???[?g?f?B???N?g????ÅfÅc??????????????
+//		Depth = 0 ;
+//		DirTempP = DXA->CurrentDirectoryV5 ;
+//		while( DirTempP->DirectoryAddress != 0xffffffff && DirTempP->DirectoryAddress != 0 )
+//		{
+//			Dir[Depth] = DirTempP ;
+//			DirTempP = ( DXARC_DIRECTORY_VER5 * )( DXA->Table.DirectoryTable + DirTempP->ParentDirectoryAddress ) ;
+//			Depth ++ ;
+//		}
+//		
+//		// ?p?X?????A??????
+//		DirPath[0] = '\0' ;
+//		for( i = Depth - 1 ; i >= 0 ; i -- )
+//		{
+//			_STRCAT( DirPath, "\\" ) ;
+//			_STRCAT( DirPath, (char *)DXA->Table.NameTable + ((DXARC_FILEHEAD_VER5 *)( DXA->Table.FileTable + Dir[i]->DirectoryAddress ))->NameAddress ) ;
+//		}
+//	}
+//	else
+//	{
+//		DXARC_DIRECTORY *Dir[200], *DirTempP ;
+//
+//		// ???[?g?f?B???N?g????ÅfÅc??????????????
+//		Depth = 0 ;
+//		DirTempP = DXA->CurrentDirectory ;
+//		while( DirTempP->DirectoryAddress != 0xffffffff && DirTempP->DirectoryAddress != 0 )
+//		{
+//			Dir[Depth] = DirTempP ;
+//			DirTempP = ( DXARC_DIRECTORY * )( DXA->Table.DirectoryTable + DirTempP->ParentDirectoryAddress ) ;
+//			Depth ++ ;
+//		}
+//		
+//		// ?p?X?????A??????
+//		DirPath[0] = '\0' ;
+//		for( i = Depth - 1 ; i >= 0 ; i -- )
+//		{
+//			_STRCAT( DirPath, "\\" ) ;
+//			_STRCAT( DirPath, (char *)DXA->Table.NameTable + ((DXARC_FILEHEAD *)( DXA->Table.FileTable + Dir[i]->DirectoryAddress ))->NameAddress ) ;
+//		}
+//	}
+//
+//	// ?o?b?t?@??Åf??????O???AÅf?????Åe??????????????f?B???N?g??????Åf?????????
+//	if( BufferSize == 0 || BufferSize < (int)_STRLEN( DirPath ) )
+//	{
+//		return _STRLEN( DirPath ) + 1 ;
+//	}
+//	else
+//	{
+//		// ?f?B???N?g???????o?b?t?@??Åg]Åe?????
+//		_STRCPY( DirPathBuffer, DirPath ) ;
+//	}
+//
+//	// ?I??
+//	return 0 ;
+//}
+
+// ?A?[?J?C?uÅg????I?u?W?F?N?g??????????( -1:?G?ÅÒ?[ -1???O:DXA?????n?Åg?h?? )
+extern DWORD_PTR DXA_FindFirst( DXARC *DXA, const BYTE *FilePath, FILEINFOW *Buffer )
+{
+	DXA_FINDDATA *find ;
+	BYTE Dir[  FILEPATH_MAX ] ;
+	BYTE Name[ FILEPATH_MAX ] ;
+	int CharBytes ;
+
+	// Åh?Åg???Åg????I?[?v?ÅgÅfÅı?????Åˆ???Å}?Å}???J???I????????Åe???
+	if( DXA->ASyncOpenFlag == TRUE )
+	{
+		while( DXA_CheckIdle( DXA ) == FALSE )
+		{
+			Thread_Sleep( 0 ) ;
+		}
+	}
+
+	// ?????????m??
+	find = ( DXA_FINDDATA * )DXALLOC( sizeof( *find ) ) ;
+	if( find == NULL )
+	{
+		return ( DWORD_PTR )-1 ;
+	}
+
+	find->Container = DXA;
+	DXA_DIR_AnalysisFileNameAndDirPath( DXA, FilePath, Name, sizeof( Name ), Dir, sizeof( Dir ) );
+
+	// ÅeS??Åe??Å˜????????
+	CL_strupr( DXA->CharCodeFormat, ( char * )Dir  ) ;
+	CL_strupr( DXA->CharCodeFormat, ( char * )Name ) ;
+
+	// ????Åe??????f?B???N?g??????Åg?
+	if( GetCharCode( ( const char * )Dir, DXA->CharCodeFormat, &CharBytes ) == '\0' )
+	{
+		find->Directory = DXA->CurrentDirectory ;
+	}
+	else
+	{
+		DXARC_DIRECTORY *OldDir;
+
+		OldDir = DXA->CurrentDirectory;
+
+		// ?wÅf????f?B???N?g???????????Åˆ???G?ÅÒ?[
+		if( DXA_ChangeCurrentDirectoryBase( DXA, Dir, false ) == -1 )
+		{
+			DXFREE( find ) ;
+			DXA->CurrentDirectory = OldDir ;
+			return ( DWORD_PTR )-1 ;
+		}
+
+		find->Directory       = DXA->CurrentDirectory ;
+		DXA->CurrentDirectory = OldDir ;
+	}
+
+	find->ObjectCount = 0;
+	CL_strcpy_s( DXA->CharCodeFormat, ( char * )find->SearchStr, sizeof( find->SearchStr ), ( const char * )Name ) ;
+
+	// ÅgK?Åˆ???????ÅÒ???t?@?C????????????
+	if( DXA_FindProcess( find, Buffer ) == -1 )
+	{
+		DXFREE( find );
+		return ( DWORD_PTR )-1 ;
+	}
+	find->ObjectCount ++ ;
+
+	// ?n?Åg?h????????
+	return ( DWORD_PTR )find ;
+}
+
+// ?A?[?J?C?uÅg????I?u?W?F?N?g??????????( -1:?G?ÅÒ?[ 0:???ÅÄ )
+extern int DXA_FindNext( DWORD_PTR DxaFindHandle, FILEINFOW *Buffer )
+{
+	DXA_FINDDATA *find;
+
+	find = ( DXA_FINDDATA * )DxaFindHandle ;
+	if( DXA_FindProcess( find, Buffer ) == -1 )
+	{
+		return -1 ;
+	}
+	find->ObjectCount ++ ;
+
+	return 0;
+}
+
+// ?A?[?J?C?uÅg????I?u?W?F?N?g???????I??????
+extern int DXA_FindClose( DWORD_PTR DxaFindHandle )
+{
+	DXA_FINDDATA *find ;
+
+	find = ( DXA_FINDDATA * )DxaFindHandle ;
+	DXFREE( find ) ;
+
+	return 0 ;
+}
+
+// ?A?[?J?C?u?t?@?C??ÅfÅı???wÅf????t?@?C????????????Åg???????( -1:?G?ÅÒ?[ 0????:?t?@?C???T?C?Y )
+//extern int DXA_LoadFile( DXARC *DXA, const char *FilePath, void *Buffer, ULONGLONG BufferSize )
+//{
+//	// Åh?Åg???Åg????I?[?v?ÅgÅfÅı?????Åˆ???Å}?Å}???J???I????????Åe???
+//	if( DXA->ASyncOpenFlag == TRUE )
+//	{
+//		while( DXA_CheckIdle( DXA ) == FALSE )
+//		{
+//			Thread_Sleep( 0 ) ;
+//		}
+//	}
+//
+//	if( DXA->V5Flag )
+//	{
+//		DXARC_FILEHEAD_VER5 *FileH ;
+//
+//		// ?wÅf????t?@?C??????????Åg???
+//		FileH = DXA_GetFileHeaderV5( DXA, FilePath ) ;
+//		if( FileH == NULL ) return -1 ;
+//
+//		// ?t?@?C???T?C?Y??Åe???????????Åf??Å~???AÅe??????????????A?o?b?t?@?A?Åh???T?C?Y???O?????????T?C?Y??????
+//		if( BufferSize < FileH->DataSize || BufferSize == 0 || Buffer == NULL )
+//		{
+//			return ( int )FileH->DataSize ;
+//		}
+//		
+//		// Åe????????????Åˆ???o?b?t?@?[??Åg???????
+//
+//		// ?t?@?C???????k??????????????????????????????
+//		if( DXA->HeadV5.Version >= 0x0002 && FileH->PressDataSize != 0xffffffff )
+//		{
+//			// ???k?????????????Åˆ
+//
+//			// ??????????Åg?????????????????????????????????
+//			if( DXA->MemoryOpenFlag == TRUE )
+//			{
+//				if( DXA->MemoryImageReadOnlyFlag )
+//				{
+//					void *temp ;
+//
+//					// ???k?f?[?^??????????Åg?????????????ÅÒ?Åg?????
+//
+//					// ???k?f?[?^?????????????????????m??
+//					temp = DXALLOC( FileH->PressDataSize ) ;
+//
+//					// ???k?f?[?^??Åg]Åe?
+//					_MEMCPY( temp, (BYTE *)DXA->MemoryImage + DXA->HeadV5.DataStartAddress + FileH->DataAddress, FileH->DataSize ) ;
+//					if( DXA->HeadV5.Version >= 0x0005 )
+//					{
+//						DXA_KeyConv( temp, FileH->PressDataSize,                                   FileH->DataSize, DXA->Key ) ;
+//					}
+//					else
+//					{
+//						DXA_KeyConv( temp, FileH->PressDataSize, DXA->HeadV5.DataStartAddress + FileH->DataAddress, DXA->Key ) ;
+//					}
+//					
+//					// ÅÒ?Åg?
+//					DXA_Decode( temp, Buffer ) ;
+//					
+//					// ????????ÅÒ???
+//					DXFREE( temp ) ;
+//				}
+//				else
+//				{
+//					// ?????????????k?f?[?^??ÅÒ?Åg?????
+//					DXA_Decode( (BYTE *)DXA->MemoryImage + DXA->HeadV5.DataStartAddress + FileH->DataAddress, Buffer ) ;
+//				}
+//			}
+//			else
+//			{
+//				void *temp ;
+//
+//				// ???k?f?[?^??????????Åg?????????????ÅÒ?Åg?????
+//
+//				// ???k?f?[?^?????????????????????m??
+//				temp = DXALLOC( FileH->PressDataSize ) ;
+//
+//				// ???k?f?[?^??Åg???????
+//				ReadOnlyFileAccessSeek( DXA->WinFilePointer__, DXA->HeadV5.DataStartAddress + FileH->DataAddress, SEEK_SET ) ;
+//				if( DXA->HeadV5.Version >= 0x0005 )
+//				{
+//					DXA_KeyConvFileRead( temp, FileH->PressDataSize, DXA->WinFilePointer__, DXA->Key, FileH->DataSize ) ;
+//				}
+//				else
+//				{
+//					DXA_KeyConvFileRead( temp, FileH->PressDataSize, DXA->WinFilePointer__, DXA->Key ) ;
+//				}
+//				
+//				// ÅÒ?Åg?
+//				DXA_Decode( temp, Buffer ) ;
+//				
+//				// ????????ÅÒ???
+//				DXFREE( temp ) ;
+//			}
+//		}
+//		else
+//		{
+//			if( DXA->MemoryOpenFlag == TRUE )
+//			{
+//				if( DXA->MemoryImageReadOnlyFlag )
+//				{
+//					// ?t?@?C???|?C?Åg?^????Åg?
+//					_MEMCPY( Buffer, (BYTE *)DXA->MemoryImage + DXA->HeadV5.DataStartAddress + FileH->DataAddress, FileH->DataSize ) ;
+//
+//					// Åg???????
+//					if( DXA->HeadV5.Version >= 0x0005 )
+//					{
+//						DXA_KeyConv( Buffer, FileH->DataSize,                                   FileH->DataSize, DXA->Key ) ;
+//					}
+//					else
+//					{
+//						DXA_KeyConv( Buffer, FileH->DataSize, DXA->HeadV5.DataStartAddress + FileH->DataAddress, DXA->Key ) ;
+//					}
+//				}
+//				else
+//				{
+//					// ?R?s?[
+//					_MEMCPY( Buffer, (BYTE *)DXA->MemoryImage + DXA->HeadV5.DataStartAddress + FileH->DataAddress, FileH->DataSize ) ;
+//				}
+//			}
+//			else
+//			{
+//				// ?t?@?C???|?C?Åg?^????Åg?
+//				ReadOnlyFileAccessSeek( DXA->WinFilePointer__, DXA->HeadV5.DataStartAddress + FileH->DataAddress, SEEK_SET ) ;
+//
+//				// Åg???????
+//				if( DXA->HeadV5.Version >= 0x0005 )
+//				{
+//					DXA_KeyConvFileRead( Buffer, FileH->DataSize, DXA->WinFilePointer__, DXA->Key, FileH->DataSize ) ;
+//				}
+//				else
+//				{
+//					DXA_KeyConvFileRead( Buffer, FileH->DataSize, DXA->WinFilePointer__, DXA->Key ) ;
+//				}
+//			}
+//		}
+//	}
+//	else
+//	{
+//		DXARC_FILEHEAD *FileH ;
+//
+//		// ?wÅf????t?@?C??????????Åg???
+//		FileH = DXA_GetFileHeader( DXA, FilePath ) ;
+//		if( FileH == NULL ) return -1 ;
+//
+//		// ?t?@?C???T?C?Y??Åe???????????Åf??Å~???AÅe??????????????A?o?b?t?@?A?Åh???T?C?Y???O?????????T?C?Y??????
+//		if( BufferSize < FileH->DataSize || BufferSize == 0 || Buffer == NULL )
+//		{
+//			return ( int )FileH->DataSize ;
+//		}
+//		
+//		// Åe????????????Åˆ???o?b?t?@?[??Åg???????
+//
+//		// ?t?@?C???????k??????????????????????????????
+//		if( FileH->PressDataSize != NONE_PAL )
+//		{
+//			// ???k?????????????Åˆ
+//
+//			// ??????????Åg?????????????????????????????????
+//			if( DXA->MemoryOpenFlag == TRUE )
+//			{
+//				if( DXA->MemoryImageReadOnlyFlag )
+//				{
+//					void *temp ;
+//
+//					// ???k?f?[?^??????????Åg?????????????ÅÒ?Åg?????
+//
+//					// ???k?f?[?^?????????????????????m??
+//					temp = DXALLOC( ( size_t )FileH->PressDataSize ) ;
+//
+//					// ???k?f?[?^??Åg???????
+//					_MEMCPY( temp, (BYTE *)DXA->MemoryImage + DXA->Head.DataStartAddress + FileH->DataAddress, ( size_t )FileH->DataSize ) ;
+//					DXA_KeyConv( temp, ( LONGLONG )FileH->DataSize, ( LONGLONG )FileH->DataSize, DXA->Key ) ;
+//					
+//					// ÅÒ?Åg?
+//					DXA_Decode( temp, Buffer ) ;
+//					
+//					// ????????ÅÒ???
+//					DXFREE( temp ) ;
+//				}
+//				else
+//				{
+//					// ?????????????k?f?[?^??ÅÒ?Åg?????
+//					DXA_Decode( (BYTE *)DXA->MemoryImage + DXA->Head.DataStartAddress + FileH->DataAddress, Buffer ) ;
+//				}
+//			}
+//			else
+//			{
+//				void *temp ;
+//
+//				// ???k?f?[?^??????????Åg?????????????ÅÒ?Åg?????
+//
+//				// ???k?f?[?^?????????????????????m??
+//				temp = DXALLOC( ( size_t )FileH->PressDataSize ) ;
+//
+//				// ???k?f?[?^??Åg???????
+//				ReadOnlyFileAccessSeek( DXA->WinFilePointer__, ( LONGLONG )( DXA->Head.DataStartAddress + FileH->DataAddress ), SEEK_SET ) ;
+//				DXA_KeyConvFileRead( temp, FileH->PressDataSize, DXA->WinFilePointer__, DXA->Key, ( LONGLONG )FileH->DataSize ) ;
+//				
+//				// ÅÒ?Åg?
+//				DXA_Decode( temp, Buffer ) ;
+//				
+//				// ????????ÅÒ???
+//				DXFREE( temp ) ;
+//			}
+//		}
+//		else
+//		{
+//			if( DXA->MemoryOpenFlag == TRUE )
+//			{
+//				if( DXA->MemoryImageReadOnlyFlag )
+//				{
+//					// ?R?s?[
+//					_MEMCPY( Buffer, (BYTE *)DXA->MemoryImage + DXA->Head.DataStartAddress + FileH->DataAddress, ( size_t )FileH->DataSize ) ;
+//
+//					DXA_KeyConv( Buffer, ( LONGLONG )FileH->DataSize, ( LONGLONG )FileH->DataSize, DXA->Key ) ;
+//				}
+//				else
+//				{
+//					// ?R?s?[
+//					_MEMCPY( Buffer, (BYTE *)DXA->MemoryImage + DXA->Head.DataStartAddress + FileH->DataAddress, ( size_t )FileH->DataSize ) ;
+//				}
+//			}
+//			else
+//			{
+//				// ?t?@?C???|?C?Åg?^????Åg?
+//				ReadOnlyFileAccessSeek( DXA->WinFilePointer__, ( LONGLONG )( DXA->Head.DataStartAddress + FileH->DataAddress ), SEEK_SET ) ;
+//
+//				// Åg???????
+//				DXA_KeyConvFileRead( Buffer, FileH->DataSize, DXA->WinFilePointer__, DXA->Key, ( LONGLONG )FileH->DataSize ) ;
+//			}
+//		}
+//	}
+//	
+//	// ?I??
+//	return 0 ;
+//}
+
+// ?A?[?J?C?u?t?@?C????????????Åg????????????Åˆ???t?@?C???C???[?W???iÅh[????????????Åg??A?h???X????Åg?????( DXA_OpenArchiveFromFileUseMem ???????? DXA_OpenArchiveFromMem ???J???????Åˆ???L?? )
+extern void *DXA_GetFileImage( DXARC *DXA )
+{
+	// Åh?Åg???Åg????I?[?v?ÅgÅfÅı?????Åˆ???Å}?Å}???J???I????????Åe???
+	if( DXA->ASyncOpenFlag == TRUE )
+	{
+		while( DXA_CheckIdle( DXA ) == FALSE )
+		{
+			Thread_Sleep( 0 ) ;
+		}
+	}
+
+	// ???????C???[?W?????J?????????????????G?ÅÒ?[
+	if( DXA->MemoryOpenFlag == FALSE )
+	{
+		return NULL ;
+	}
+
+	// ??Åg??A?h???X??????
+	return DXA->MemoryImage ;
+}
+
+// ?A?[?J?C?u?t?@?C??ÅfÅı???wÅf????t?@?C?????t?@?C??Åg?????Åfu???t?@?C????Åe???????Åg???( -1:?G?ÅÒ?[ )
+extern int DXA_GetFileInfo( DXARC *DXA, int CharCodeFormat, const char *FilePath, int *Position, int *Size )
+{
+	BYTE TempBuffer[ 4096 ] ;
+	const BYTE *FilePathB ;
+
+	// ?Å˜???R?[?h?`?????????????Åˆ??????????
+	if( CharCodeFormat != DXA->CharCodeFormat )
+	{
+		ConvString( FilePath, -1, CharCodeFormat, ( char * )TempBuffer, sizeof( TempBuffer ), DXA->CharCodeFormat ) ;
+		FilePathB = TempBuffer ;
+	}
+	else
+	{
+		FilePathB = ( const BYTE * )FilePath ;
+	}
+
+	// Åh?Åg???Åg????I?[?v?ÅgÅfÅı?????Åˆ???Å}?Å}???J???I????????Åe???
+	if( DXA->ASyncOpenFlag == TRUE )
+	{
+		while( DXA_CheckIdle( DXA ) == FALSE )
+		{
+			Thread_Sleep( 0 ) ;
+		}
+	}
+
+	if( DXA->V5Flag )
+	{
+		DXARC_FILEHEAD_VER5 *FileH ;
+
+		// ?wÅf????t?@?C??????????Åg???
+		FileH = DXA_GetFileHeaderV5( DXA, FilePathB ) ;
+		if( FileH == NULL )
+		{
+			return -1 ;
+		}
+
+		// ?t?@?C?????f?[?^????????Åfu???t?@?C???T?C?Y????ÅeÅ˜????
+		if( Position != NULL )
+		{
+			*Position = ( int )( DXA->HeadV5.DataStartAddress + FileH->DataAddress ) ;
+		}
+
+		if( Size     != NULL )
+		{
+			*Size     = ( int )FileH->DataSize ;
+		}
+	}
+	else
+	{
+		DXARC_FILEHEAD *FileH ;
+		DXARC_DIRECTORY *Directory ;
+
+		// ?wÅf????t?@?C??????????Åg???
+		FileH = DXA_GetFileHeader( DXA, FilePathB, &Directory ) ;
+		if( FileH == NULL )
+		{
+			return -1 ;
+		}
+
+		// ?t?@?C?????f?[?^????????Åfu???t?@?C???T?C?Y????ÅeÅ˜????
+		if( Position != NULL )
+		{
+			*Position = ( int )( DXA->Head.DataStartAddress + FileH->DataAddress ) ;
+		}
+
+		if( Size     != NULL )
+		{
+			*Size     = ( int )( FileH->DataSize ) ;
+		}
+	}
+
+	// ???ÅÄ?I??
+	return 0 ;
+}
+
+
+
+// ?A?[?J?C?u?t?@?C??Åg????t?@?C?????J??(?t?@?C?????Å˜?????????K?v????)
+extern int DXA_STREAM_Initialize( DXARC_STREAM *DXAStream, DXARC *DXA, const BYTE *FilePath, int UseASyncReadFlag )
+{
+	// Åh?Åg???Åg????I?[?v?ÅgÅfÅı?????Åˆ???Å}?Å}???J???I????????Åe???
+	if( DXA->ASyncOpenFlag == TRUE )
+	{
+		while( DXA_CheckIdle( DXA ) == FALSE )
+		{
+			Thread_Sleep( 0 ) ;
+		}
+	}
+
+	// ?f?[?^???Z?b?g
+	DXAStream->Archive          = DXA ;
+	DXAStream->EOFFlag          = FALSE ;
+	DXAStream->FilePoint        = 0 ;
+	DXAStream->DecodeDataBuffer = NULL ;
+	DXAStream->DecodeTempBuffer = NULL ;
+	DXAStream->UseASyncReadFlag = UseASyncReadFlag ;
+	DXAStream->ASyncState       = DXARC_STREAM_ASYNCSTATE_IDLE ;
+
+	// ?t?@?C???????J???????????Åˆ???A?[?J?C?u?t?@?C?????t?@?C???|?C?Åg?^??????
+	if( DXA->MemoryOpenFlag == FALSE )
+	{
+		DXAStream->WinFilePointer = ReadOnlyFileAccessOpen( DXA->FilePath, FALSE, TRUE, FALSE ) ;
+		if( DXAStream->WinFilePointer == 0 )
+		{
+			return -1 ;
+		}
+	}
+
+	if( DXA->V5Flag )
+	{
+		DXARC_FILEHEAD_VER5 *FileH ;
+
+		// ?wÅf????t?@?C??????????Åg???
+		FileH = DXA_GetFileHeaderV5( DXA, FilePath ) ;
+		if( FileH == NULL )
+		{
+			if( DXA->MemoryOpenFlag == FALSE )
+			{
+				ReadOnlyFileAccessClose( DXAStream->WinFilePointer ) ;
+				DXAStream->WinFilePointer = 0 ;
+			}
+			return -1 ;
+		}
+
+		// ?t?@?C?????????Z?b?g
+		DXAStream->FileHeadV5 = FileH ;
+
+		// ?t?@?C???????k?????????????Åˆ???Å}?Å}??Åg?????????ÅÒ?Åg???????????
+		if( DXA->HeadV5.Version >= 0x0002 && FileH->PressDataSize != 0xffffffff )
+		{
+			// ÅÒ?Åg??f?[?^?????????????????????m??
+			DXAStream->DecodeDataBuffer = DXALLOC( FileH->DataSize ) ;
+
+			// ??????????Åg???????????????????????????????????
+			if( DXA->MemoryOpenFlag == TRUE )
+			{
+				if( DXA->MemoryImageReadOnlyFlag )
+				{
+					// ???k?f?[?^?????????????????????m??
+					DXAStream->DecodeTempBuffer = DXALLOC( FileH->PressDataSize ) ;
+
+					// ???k?f?[?^??Åg???????
+					_MEMCPY( DXAStream->DecodeTempBuffer, (BYTE *)DXA->MemoryImage + DXA->HeadV5.DataStartAddress + FileH->DataAddress, FileH->PressDataSize ) ;
+					if( DXA->HeadV5.Version >= 0x0005 )
+					{
+						DXA_KeyConv( DXAStream->DecodeTempBuffer, FileH->PressDataSize,                                   FileH->DataSize, DXA->Key ) ;
+					}
+					else
+					{
+						DXA_KeyConv( DXAStream->DecodeTempBuffer, FileH->PressDataSize, DXA->HeadV5.DataStartAddress + FileH->DataAddress, DXA->Key ) ;
+					}
+
+					// ÅÒ?Åg?
+					DXA_Decode( DXAStream->DecodeTempBuffer, DXAStream->DecodeDataBuffer ) ;
+				
+					// ????????ÅÒ???
+					DXFREE( DXAStream->DecodeTempBuffer ) ;
+					DXAStream->DecodeTempBuffer = NULL ;
+				}
+				else
+				{
+					// ÅÒ?Åg?
+					DXA_Decode( (BYTE *)DXA->MemoryImage + DXA->HeadV5.DataStartAddress + FileH->DataAddress, DXAStream->DecodeDataBuffer ) ;
+				}
+			}
+			else
+			{
+				// ???k?f?[?^?????????????????????m??
+				DXAStream->DecodeTempBuffer = DXALLOC( FileH->PressDataSize ) ;
+
+				// ???k?f?[?^??Åg???????
+				DXAStream->ASyncReadFileAddress = DXA->HeadV5.DataStartAddress + FileH->DataAddress ;
+				ReadOnlyFileAccessSeek( DXAStream->WinFilePointer, ( LONGLONG )DXAStream->ASyncReadFileAddress, SEEK_SET ) ;
+
+				// Åh?Åg????????Åˆ??Åg???????????ÅÒ????????X???s??
+				if( DXAStream->UseASyncReadFlag == TRUE )
+				{
+					// ?t?@?C??????Åg???????
+					ReadOnlyFileAccessRead( DXAStream->DecodeTempBuffer, FileH->PressDataSize, 1, DXAStream->WinFilePointer ) ;
+					DXAStream->ASyncState = DXARC_STREAM_ASYNCSTATE_PRESSREAD ;
+				}
+				else
+				{
+					if( DXA->HeadV5.Version >= 0x0005 )
+					{
+						DXA_KeyConvFileRead( DXAStream->DecodeTempBuffer, FileH->PressDataSize, DXAStream->WinFilePointer, DXA->Key, FileH->DataSize ) ;
+					}
+					else
+					{
+						DXA_KeyConvFileRead( DXAStream->DecodeTempBuffer, FileH->PressDataSize, DXAStream->WinFilePointer, DXA->Key ) ;
+					}
+
+					// ÅÒ?Åg?
+					DXA_Decode( DXAStream->DecodeTempBuffer, DXAStream->DecodeDataBuffer ) ;
+				
+					// ????????ÅÒ???
+					DXFREE( DXAStream->DecodeTempBuffer ) ;
+					DXAStream->DecodeTempBuffer = NULL ;
+				}
+			}
+		}
+	}
+	else
+	{
+		DXARC_FILEHEAD *FileH ;
+		DXARC_DIRECTORY *Directory ;
+
+		// ?wÅf????t?@?C??????????Åg???
+		FileH = DXA_GetFileHeader( DXA, FilePath, &Directory ) ;
+		if( FileH == NULL )
+		{
+			if( DXA->MemoryOpenFlag == FALSE )
+			{
+				ReadOnlyFileAccessClose( DXAStream->WinFilePointer ) ;
+				DXAStream->WinFilePointer = 0 ;
+			}
+			return -1 ;
+		}
+
+		// ?t?@?C?????????Z?b?g
+		DXAStream->FileHead = FileH ;
+
+		// ???o?[?W?Åˆ?Åg?Q???g???o?[?W?Åˆ?Åg?????Åˆ?????o?[?W?Åˆ?Åg?Q??????????
+		if( DXA->Head.Version >= DXA_KEYV2_VER )
+		{
+			char KeyV2String[ DXA_KEYV2_STRING_MAXLENGTH ] ;
+			size_t KeyV2StringBytes ;
+			KeyV2StringBytes = DXA_CreateKeyV2FileString( DXA, Directory, FileH, ( BYTE * )KeyV2String ) ;
+			DXA_KeyV2Create( KeyV2String, DXAStream->KeyV2 , KeyV2StringBytes ) ;
+		}
+
+		// ?t?@?C???????k?????????????Åˆ???Å}?Å}??Åg?????????ÅÒ?Åg???????????
+		if( FileH->PressDataSize != NONE_PAL )
+		{
+			// ÅÒ?Åg??f?[?^?????????????????????m??
+			DXAStream->DecodeDataBuffer = DXALLOC( ( size_t )FileH->DataSize ) ;
+
+			// ??????????Åg???????????????????????????????????
+			if( DXA->MemoryOpenFlag == TRUE )
+			{
+				if( DXA->MemoryImageReadOnlyFlag )
+				{
+					// ???k?f?[?^?????????????????????m??
+					DXAStream->DecodeTempBuffer = DXALLOC( ( size_t )FileH->PressDataSize ) ;
+
+					// ???k?f?[?^??Åg???????
+					_MEMCPY( DXAStream->DecodeTempBuffer, (BYTE *)DXA->MemoryImage + DXA->Head.DataStartAddress + FileH->DataAddress, ( size_t )FileH->PressDataSize ) ;
+					if( DXA->Head.Version >= DXA_KEYV2_VER )
+					{
+						DXA_KeyV2Conv( DXAStream->DecodeTempBuffer, ( LONGLONG )FileH->PressDataSize, ( LONGLONG )FileH->DataSize, DXAStream->KeyV2 ) ;
+					}
+					else
+					{
+						DXA_KeyConv( DXAStream->DecodeTempBuffer, ( LONGLONG )FileH->PressDataSize, ( LONGLONG )FileH->DataSize, DXA->Key ) ;
+					}
+
+					// ÅÒ?Åg?
+					DXA_Decode( DXAStream->DecodeTempBuffer, DXAStream->DecodeDataBuffer ) ;
+				
+					// ????????ÅÒ???
+					DXFREE( DXAStream->DecodeTempBuffer ) ;
+					DXAStream->DecodeTempBuffer = NULL ;
+				}
+				else
+				{
+					// ÅÒ?Åg?
+					DXA_Decode( (BYTE *)DXA->MemoryImage + DXA->Head.DataStartAddress + FileH->DataAddress, DXAStream->DecodeDataBuffer ) ;
+				}
+			}
+			else
+			{
+				// ???k?f?[?^?????????????????????m??
+				DXAStream->DecodeTempBuffer = DXALLOC( ( size_t )FileH->PressDataSize ) ;
+
+				// ???k?f?[?^??Åg???????
+				DXAStream->ASyncReadFileAddress = DXA->Head.DataStartAddress + FileH->DataAddress;
+				ReadOnlyFileAccessSeek( DXAStream->WinFilePointer, ( LONGLONG )DXAStream->ASyncReadFileAddress, SEEK_SET ) ;
+
+				// Åh?Åg????????Åˆ??Åg???????????ÅÒ????????X???s??
+				if( DXAStream->UseASyncReadFlag == TRUE )
+				{
+					// ?t?@?C??????Åg???????
+					ReadOnlyFileAccessRead( DXAStream->DecodeTempBuffer, ( size_t )FileH->PressDataSize, 1, DXAStream->WinFilePointer ) ;
+					DXAStream->ASyncState = DXARC_STREAM_ASYNCSTATE_PRESSREAD ;
+				}
+				else
+				{
+					if( DXA->Head.Version >= DXA_KEYV2_VER )
+					{
+						DXA_KeyV2ConvFileRead( DXAStream->DecodeTempBuffer, FileH->PressDataSize, DXAStream->WinFilePointer, DXAStream->KeyV2, ( LONGLONG )FileH->DataSize ) ;
+					}
+					else
+					{
+						DXA_KeyConvFileRead( DXAStream->DecodeTempBuffer, FileH->PressDataSize, DXAStream->WinFilePointer, DXA->Key, ( LONGLONG )FileH->DataSize ) ;
+					}
+
+					// ÅÒ?Åg?
+					DXA_Decode( DXAStream->DecodeTempBuffer, DXAStream->DecodeDataBuffer ) ;
+				
+					// ????????ÅÒ???
+					DXFREE( DXAStream->DecodeTempBuffer ) ;
+					DXAStream->DecodeTempBuffer = NULL ;
+				}
+			}
+		}
+	}
+
+	// ?I??
+	return 0 ;
+}
+
+// ?A?[?J?C?u?t?@?C??Åg????t?@?C???????Å˜??
+extern int DXA_STREAM_Terminate( DXARC_STREAM *DXAStream )
+{
+	// Åh?Åg???Åg???????????Åe???????Åe??@??Åe???????????????Åe??@??Åe???????????Åe???
+	if( DXAStream->UseASyncReadFlag == TRUE && DXAStream->ASyncState != DXARC_STREAM_ASYNCSTATE_IDLE )
+	{
+		while( DXA_STREAM_IdleCheck( DXAStream ) == FALSE )
+		{
+			Thread_Sleep( 1 ) ;
+		}
+	}
+
+	// ????????ÅÒ???
+	if( DXAStream->DecodeDataBuffer != NULL )
+	{
+		DXFREE( DXAStream->DecodeDataBuffer ) ;
+		DXAStream->DecodeDataBuffer = NULL ;
+	}
+
+	if( DXAStream->DecodeTempBuffer != NULL )
+	{
+		DXFREE( DXAStream->DecodeTempBuffer ) ;
+		DXAStream->DecodeTempBuffer = NULL ;
+	}
+
+	// ?t?@?C???????Å˜??
+	if( DXAStream->Archive->MemoryOpenFlag == FALSE )
+	{
+		ReadOnlyFileAccessClose( DXAStream->WinFilePointer ) ;
+		DXAStream->WinFilePointer = 0 ;
+	}
+
+	// ?[???ÅÒ??ÅÒ?
+	_MEMSET( DXAStream, 0, sizeof( DXARC_STREAM ) ) ;
+
+	// ?I??
+	return 0 ;
+}
+
+// ?t?@?C????Åg??e??Åg???????
+extern int DXA_STREAM_Read( DXARC_STREAM *DXAStream, void *Buffer, size_t ReadLength )
+{
+	size_t ReadSize ;
+	ULONGLONG DataSize ;
+	ULONGLONG DataStartAddress ;
+	ULONGLONG DataAddress ;
+
+	// Åh?Åg???Åg???????????Åe???????Åe??@??Åe???????????????Åe??@??Åe???????????Åe???
+	if( DXAStream->UseASyncReadFlag == TRUE && DXAStream->ASyncState != DXARC_STREAM_ASYNCSTATE_IDLE )
+	{
+		while( DXA_STREAM_IdleCheck( DXAStream ) == FALSE )
+		{
+			Thread_Sleep( 1 ) ;
+		}
+	}
+
+	if( DXAStream->Archive->V5Flag )
+	{
+		DataSize = DXAStream->FileHeadV5->DataSize ;
+		DataAddress = DXAStream->FileHeadV5->DataAddress ;
+		DataStartAddress = DXAStream->Archive->HeadV5.DataStartAddress ;
+	}
+	else
+	{
+		DataSize = DXAStream->FileHead->DataSize ;
+		DataAddress = DXAStream->FileHead->DataAddress ;
+		DataStartAddress = DXAStream->Archive->Head.DataStartAddress ;
+	}
+
+	// EOF ?t?ÅÒ?O???Åò???????????O??????
+	if( DXAStream->EOFFlag == TRUE )
+	{
+		return 0 ;
+	}
+
+	// EOF ???o
+	if( DataSize == DXAStream->FilePoint )
+	{
+		DXAStream->EOFFlag = TRUE ;
+		return 0 ;
+	}
+
+	// ?f?[?^??Åg?????????????Åf?????
+	ReadSize = ReadLength < DataSize - DXAStream->FilePoint ? ReadLength : ( size_t )( DataSize - DXAStream->FilePoint ) ;
+
+	// ?f?[?^?????k??????????????????????????????
+	if( DXAStream->DecodeDataBuffer != NULL )
+	{
+		// ?f?[?^???R?s?[????
+		_MEMCPY( Buffer, (BYTE *)DXAStream->DecodeDataBuffer + DXAStream->FilePoint, ReadSize ) ;
+	}
+	else
+	{
+		// ???????????f?[?^??????????????????????????
+		if( DXAStream->Archive->MemoryOpenFlag == TRUE )
+		{
+			// ?????????????????Åˆ
+
+			// ?f?[?^???R?s?[????
+			_MEMCPY( Buffer, (BYTE *)DXAStream->Archive->MemoryImage + DataStartAddress + DataAddress + DXAStream->FilePoint, ReadSize ) ;
+
+			if( DXAStream->Archive->MemoryImageReadOnlyFlag )
+			{
+				if( DXAStream->Archive->V5Flag )
+				{
+					if( DXAStream->Archive->HeadV5.Version >= 0x0005 )
+					{
+						DXA_KeyConv( Buffer, ( LONGLONG )ReadSize,                       ( LONGLONG )( DataSize + DXAStream->FilePoint ), DXAStream->Archive->Key ) ;
+					}
+					else
+					{
+						DXA_KeyConv( Buffer, ( LONGLONG )ReadSize, ( LONGLONG )( DataStartAddress + DataAddress + DXAStream->FilePoint ), DXAStream->Archive->Key ) ;
+					}
+				}
+				else
+				{
+					if( DXAStream->Archive->Head.Version >= DXA_KEYV2_VER )
+					{
+						DXA_KeyV2Conv( Buffer, ( LONGLONG )ReadSize,                       ( LONGLONG )( DataSize + DXAStream->FilePoint ), DXAStream->KeyV2 ) ;
+					}
+					else
+					{
+						DXA_KeyConv(   Buffer, ( LONGLONG )ReadSize,                       ( LONGLONG )( DataSize + DXAStream->FilePoint ), DXAStream->Archive->Key ) ;
+					}
+				}
+			}
+		}
+		else
+		{
+			// ?t?@?C??????Åg????????????????Åˆ
+
+			// ?A?[?J?C?u?t?@?C???|?C?Åg?^???AÅÒ?Åez?t?@?C???|?C?Åg?^????Åfv??????????Åf??Å~??
+			// ??Åfv?????????????????A?[?J?C?u?t?@?C???|?C?Åg?^????Åg?????
+			DXAStream->ASyncReadFileAddress = DataAddress + DataStartAddress + DXAStream->FilePoint ;
+			if( ( ULONGLONG )ReadOnlyFileAccessTell( DXAStream->WinFilePointer ) != DXAStream->ASyncReadFileAddress )
+			{
+				ReadOnlyFileAccessSeek( DXAStream->WinFilePointer, ( LONGLONG )DXAStream->ASyncReadFileAddress, SEEK_SET ) ;
+			}
+
+			// Åh?Åg???Åg????????????Åˆ??Åg???Åg????????????Åˆ????????????
+			if( DXAStream->UseASyncReadFlag )
+			{
+				// ?t?@?C??????Åg???????
+				ReadOnlyFileAccessRead( Buffer, ReadSize, 1, DXAStream->WinFilePointer ) ;
+				DXAStream->ReadBuffer = Buffer;
+				DXAStream->ReadSize = ( int )ReadSize;
+				DXAStream->ASyncState = DXARC_STREAM_ASYNCSTATE_READ ;
+			}
+			else
+			{
+				// ?f?[?^??Åg???????
+				if( DXAStream->Archive->V5Flag )
+				{
+					if( DXAStream->Archive->HeadV5.Version >= 0x0005 )
+					{
+						DXA_KeyConvFileRead( Buffer, ReadSize, DXAStream->WinFilePointer, DXAStream->Archive->Key, ( LONGLONG )( DataSize + DXAStream->FilePoint ) ) ;
+					}
+					else
+					{
+						DXA_KeyConvFileRead( Buffer, ReadSize, DXAStream->WinFilePointer, DXAStream->Archive->Key ) ;
+					}
+				}
+				else
+				{
+					if( DXAStream->Archive->Head.Version >= DXA_KEYV2_VER )
+					{
+						DXA_KeyV2ConvFileRead( Buffer, ReadSize, DXAStream->WinFilePointer, DXAStream->KeyV2,        ( LONGLONG )( DataSize + DXAStream->FilePoint ) ) ;
+					}
+					else
+					{
+						DXA_KeyConvFileRead(   Buffer, ReadSize, DXAStream->WinFilePointer, DXAStream->Archive->Key, ( LONGLONG )( DataSize + DXAStream->FilePoint ) ) ;
+					}
+				}
+			}
+		}
+	}
+	
+	// EOF ?t?ÅÒ?O??Åg|??
+	DXAStream->EOFFlag = FALSE ;
+
+	// Åg????????????????t?@?C???|?C?Åg?^????Åg?????
+	DXAStream->FilePoint += ( int )ReadSize ;
+	
+	// Åg??????????e????????
+	return ( int )ReadSize ;
+}
+	
+// ?t?@?C???|?C?Åg?^?????X????
+extern	int DXA_STREAM_Seek( DXARC_STREAM *DXAStream, LONGLONG SeekPoint, int SeekMode )
+{
+	ULONGLONG DataSize ;
+
+	// Åh?Åg???Åg???????????Åe???????Åe??@??Åe???????????????Åe??@??Åe???????????Åe???
+	if( DXAStream->UseASyncReadFlag == TRUE && DXAStream->ASyncState != DXARC_STREAM_ASYNCSTATE_IDLE )
+	{
+		while( DXA_STREAM_IdleCheck( DXAStream ) == FALSE )
+		{
+			Thread_Sleep( 1 ) ;
+		}
+	}
+
+	if( DXAStream->Archive->V5Flag )
+	{
+		DataSize = DXAStream->FileHeadV5->DataSize ;
+	}
+	else
+	{
+		DataSize = DXAStream->FileHead->DataSize ;
+	}
+
+	// ?V?[?N?^?C?v??????????????????
+	switch( SeekMode )
+	{
+	case SEEK_SET : break ;		
+	case SEEK_CUR : SeekPoint += ( LONGLONG )( DXAStream->FilePoint ) ; break ;
+	case SEEK_END :	SeekPoint  = ( LONGLONG )( DataSize + SeekPoint ) ; break ;
+	}
+	
+	// ????
+	if( SeekPoint > ( LONGLONG )DataSize ) SeekPoint = ( LONGLONG )DataSize ;
+	if( SeekPoint < 0 ) SeekPoint = 0 ;
+	
+	// ?Z?b?g
+	DXAStream->FilePoint = ( ULONGLONG )SeekPoint ;
+	
+	// EOF?t?ÅÒ?O??Åg|??
+	DXAStream->EOFFlag = FALSE ;
+	
+	// ?I??
+	return 0 ;
+}
+
+// ???????t?@?C???|?C?Åg?^??Åg???
+extern	LONGLONG DXA_STREAM_Tell( DXARC_STREAM *DXAStream )
+{
+	// Åh?Åg???Åg???????????Åe???????Åe??@??Åe???????????????Åe??@??Åe???????????Åe???
+	if( DXAStream->UseASyncReadFlag == TRUE && DXAStream->ASyncState != DXARC_STREAM_ASYNCSTATE_IDLE )
+	{
+		while( DXA_STREAM_IdleCheck( DXAStream ) == FALSE )
+		{
+			Thread_Sleep( 1 ) ;
+		}
+	}
+
+	return ( LONGLONG )DXAStream->FilePoint ;
+}
+
+// ?t?@?C?????IÅf[?????????????A???t?ÅÒ?O??Åg???
+extern	int DXA_STREAM_Eof( DXARC_STREAM *DXAStream )
+{
+	// Åh?Åg???Åg???????????Åe???????Åe??@??Åe???????????????Åe??@??Åe???????????Åe???
+	if( DXAStream->UseASyncReadFlag == TRUE && DXAStream->ASyncState != DXARC_STREAM_ASYNCSTATE_IDLE )
+	{
+		while( DXA_STREAM_IdleCheck( DXAStream ) == FALSE )
+		{
+			Thread_Sleep( 1 ) ;
+		}
+	}
+
+	return DXAStream->EOFFlag ? EOF : 0 ;
+}
+
+// Åg???????????????????????????????????Åf??Å~??
+extern	int	DXA_STREAM_IdleCheck( DXARC_STREAM *DXAStream )
+{
+	// Åh?Åg???Åg??????????????????Åˆ??ÅÒ??????? TRUE ??????
+	if( DXAStream->UseASyncReadFlag == FALSE )
+	{
+		return TRUE ;
+	}
+
+	// ??Åe???????????????????
+	switch( DXAStream->ASyncState )
+	{
+	case DXARC_STREAM_ASYNCSTATE_IDLE:			// Åe??@??Åe?
+		return TRUE;
+
+	case DXARC_STREAM_ASYNCSTATE_PRESSREAD:		// ???k?f?[?^Åg???????Åe???
+
+		// Åg????????I??Åe???
+		if( ReadOnlyFileAccessIdleCheck( DXAStream->WinFilePointer ) == FALSE )
+		{
+			return FALSE;
+		}
+
+		// Åg????????I?????????????????O??
+		if( DXAStream->Archive->V5Flag )
+		{
+			if( DXAStream->Archive->HeadV5.Version >= 0x0005 )
+			{
+				DXA_KeyConv( DXAStream->DecodeTempBuffer, ( LONGLONG )DXAStream->FileHeadV5->PressDataSize, ( LONGLONG )DXAStream->FileHeadV5->DataSize, DXAStream->Archive->Key ) ;
+			}
+			else
+			{
+				DXA_KeyConv( DXAStream->DecodeTempBuffer, ( LONGLONG )DXAStream->FileHeadV5->PressDataSize, ( LONGLONG )DXAStream->ASyncReadFileAddress, DXAStream->Archive->Key ) ;
+			}
+		}
+		else
+		{
+			if( DXAStream->Archive->Head.Version >= DXA_KEYV2_VER )
+			{
+				DXA_KeyV2Conv( DXAStream->DecodeTempBuffer, ( LONGLONG )DXAStream->FileHead->PressDataSize, ( LONGLONG )DXAStream->FileHead->DataSize, DXAStream->KeyV2 ) ;
+			}
+			else
+			{
+				DXA_KeyConv( DXAStream->DecodeTempBuffer, ( LONGLONG )DXAStream->FileHead->PressDataSize, ( LONGLONG )DXAStream->FileHead->DataSize, DXAStream->Archive->Key ) ;
+			}
+		}
+
+		// ÅÒ?Åg?
+		DXA_Decode( DXAStream->DecodeTempBuffer, DXAStream->DecodeDataBuffer ) ;
+	
+		// ????????ÅÒ???
+		DXFREE( DXAStream->DecodeTempBuffer ) ;
+		DXAStream->DecodeTempBuffer = NULL ;
+
+		// ??Åe???Åe??@??Åe???????
+		DXAStream->ASyncState = DXARC_STREAM_ASYNCSTATE_IDLE;
+		return TRUE;
+
+	case DXARC_STREAM_ASYNCSTATE_READ:			// Åg???????Åe???
+
+		// Åg????????I??Åe???
+		if( ReadOnlyFileAccessIdleCheck( DXAStream->WinFilePointer ) == FALSE )
+		{
+			return FALSE;
+		}
+
+		// Åg????????I?????????????O??
+		if( DXAStream->Archive->V5Flag )
+		{
+			if( DXAStream->Archive->HeadV5.Version >= 0x0005 )
+			{
+				DXA_KeyConv( DXAStream->ReadBuffer, ( LONGLONG )DXAStream->ReadSize, ( LONGLONG )( DXAStream->FileHeadV5->DataSize + ( DXAStream->ASyncReadFileAddress - ( DXAStream->FileHeadV5->DataAddress + DXAStream->Archive->HeadV5.DataStartAddress ) ) ), DXAStream->Archive->Key ) ;
+			}
+			else
+			{
+				DXA_KeyConv( DXAStream->ReadBuffer, ( LONGLONG )DXAStream->ReadSize, ( LONGLONG )DXAStream->ASyncReadFileAddress, DXAStream->Archive->Key ) ;
+			}
+		}
+		else
+		{
+			if( DXAStream->Archive->Head.Version >= DXA_KEYV2_VER )
+			{
+				DXA_KeyV2Conv( DXAStream->ReadBuffer, ( LONGLONG )DXAStream->ReadSize, ( LONGLONG )( DXAStream->FileHead->DataSize + ( DXAStream->ASyncReadFileAddress - ( DXAStream->FileHead->DataAddress + DXAStream->Archive->Head.DataStartAddress ) ) ), DXAStream->KeyV2 ) ;
+			}
+			else
+			{
+				DXA_KeyConv( DXAStream->ReadBuffer, ( LONGLONG )DXAStream->ReadSize, ( LONGLONG )( DXAStream->FileHead->DataSize + ( DXAStream->ASyncReadFileAddress - ( DXAStream->FileHead->DataAddress + DXAStream->Archive->Head.DataStartAddress ) ) ), DXAStream->Archive->Key ) ;
+			}
+		}
+
+		// ??Åe???Åe??@??Åe???????
+		DXAStream->ASyncState = DXARC_STREAM_ASYNCSTATE_IDLE;
+		return TRUE;
+	}
+
+	return TRUE ;
+}
+
+// ?t?@?C?????T?C?Y????Åg?????
+extern	LONGLONG DXA_STREAM_Size( DXARC_STREAM *DXAStream )
+{
+	if( DXAStream->Archive->V5Flag )
+	{
+		return DXAStream->FileHeadV5->DataSize ;
+	}
+	else
+	{
+		return ( LONGLONG )DXAStream->FileHead->DataSize ;
+	}
+}
+
+
+
+
+
+
+
+// ?t???p?X?????????p?X?Å˜???????t???p?X??????????
+static int DXA_DIR_ConvertFullPath( const wchar_t *Src, wchar_t *Dest, size_t BufferBytes, int CharUp )
+{
+	int Result ;
+
+	Result = ConvertFullPathW_( Src, Dest, BufferBytes, NULL ) ;
+	if( CharUp )
+	{
+		CL_strupr( WCHAR_T_CHARCODEFORMAT, ( char * )Dest ) ;
+	}
+
+	return Result ;
+
+#if 0
+	int     i, k ;
+	wchar_t iden[ FILEPATH_MAX ] ;
+	wchar_t CurrentDir[ FILEPATH_MAX ] ;
+	DWORD   CharCode1 ;
+	int     CharBytes1 ;
+	DWORD   CharCode2 ;
+	int     CharBytes2 ;
+	DWORD   LastCharCode ;
+	int     LastCharBytes ;
+	char *  LastCharAddress ;
+	int     CharNum ;
+	size_t	DestBytes ;
+
+	// ?J???Åg?g?f?B???N?g????Åg???
+	_WGETCWD( CurrentDir, sizeof( CurrentDir ) ) ;
+	_WCSUPR( CurrentDir ) ;
+	if( Src == NULL )
+	{
+		_WCSCPY_S( Dest, BufferBytes, CurrentDir ) ;
+		goto END ;
+	}
+
+	i = 0 ;
+	k = 0 ;
+
+	DestBytes = 0 ;
+
+	// ?P?Å˜???????Q?Å˜????????Åg?
+	CharCode1 = GetCharCode( ( const char * )&( ( BYTE * )Src )[ 0 ], WCHAR_T_CHARCODEFORMAT, &CharBytes1 ) ;
+	CharCode2 = 0 ;
+	if( CharCode1 != 0 )
+	{
+		CharCode2 = GetCharCode( ( const char * )&( ( BYTE * )Src )[ CharBytes1 ], WCHAR_T_CHARCODEFORMAT, &CharBytes2 ) ;
+	}
+
+	// ???ÅÒ???w\?x?Åh???w/?x???QÅÒ??AÅeÅ}??ÅeÅ}???????????Åˆ???l?b?g???[?N??ÅÒ???????????Åh?Åff
+
+	if( ( CharCode1 == '\\' && CharCode2 == '\\' ) ||
+		( CharCode1 == '/'  && CharCode2 == '/'  ) )
+	{
+		DestBytes += PutCharCode( '\\', WCHAR_T_CHARCODEFORMAT, ( char * )&( ( BYTE * )Dest )[ DestBytes ], BufferBytes - DestBytes ) ;
+		PutCharCode( '\0', WCHAR_T_CHARCODEFORMAT, ( char * )&( ( BYTE * )Dest )[ DestBytes ], BufferBytes - DestBytes ) ;
+
+		i += CharBytes1 + CharBytes2 ;
+	}
+	else
+	// ???ÅÒ???w\?x?Åh???w/?x?????Åˆ???J???Åg?g?h?ÅÒ?C?u?????[?g?f?B???N?g????????????
+	if( CharCode1 == '\\' || CharCode1 == '/' )
+	{
+		DWORD CurCharCode1 ;
+		DWORD CurCharCode2 ;
+		int   CurCharBytes1 ;
+		int   CurCharBytes2 ;
+
+		CurCharCode1 = GetCharCode( ( char * )&( ( BYTE * )CurrentDir )[ 0             ], WCHAR_T_CHARCODEFORMAT, &CurCharBytes1 ) ;
+		CurCharCode2 = GetCharCode( ( char * )&( ( BYTE * )CurrentDir )[ CurCharBytes1 ], WCHAR_T_CHARCODEFORMAT, &CurCharBytes2 ) ;
+		DestBytes += PutCharCode( CurCharCode1, WCHAR_T_CHARCODEFORMAT, ( char * )&( ( BYTE * )Dest )[ DestBytes ], BufferBytes - DestBytes ) ;
+		DestBytes += PutCharCode( CurCharCode2, WCHAR_T_CHARCODEFORMAT, ( char * )&( ( BYTE * )Dest )[ DestBytes ], BufferBytes - DestBytes ) ;
+		PutCharCode( '\0', WCHAR_T_CHARCODEFORMAT, ( char * )&( ( BYTE * )Dest )[ DestBytes ], BufferBytes - DestBytes ) ;
+
+		i += CharBytes1 ;
+	}
+	else
+	// ?h?ÅÒ?C?u?????Åe?????????????????h?ÅÒ?C?u??
+	if( CharCode2 == ':' )
+	{
+		DestBytes += PutCharCode( CharUp ? CHARUP( CharCode1 ) : CharCode1, WCHAR_T_CHARCODEFORMAT, ( char * )&( ( BYTE * )Dest )[ DestBytes ], BufferBytes - DestBytes ) ;
+		DestBytes += PutCharCode(                  CharCode2              , WCHAR_T_CHARCODEFORMAT, ( char * )&( ( BYTE * )Dest )[ DestBytes ], BufferBytes - DestBytes ) ;
+		PutCharCode( '\0', WCHAR_T_CHARCODEFORMAT, ( char * )&( ( BYTE * )Dest )[ DestBytes ], BufferBytes - DestBytes ) ;
+
+		i += CharBytes1 + CharBytes2 ;
+
+		// : ?????? \ ?}?[?N??Åh?????
+		CharCode1 = GetCharCode( ( const char * )&( ( BYTE * )Src )[ i ], WCHAR_T_CHARCODEFORMAT, &CharBytes1 ) ;
+		if( CharCode1 == '\\' )
+		{
+			i += CharBytes1 ;
+		}
+	}
+	else
+	// ???????O?????Åˆ???J???Åg?g?f?B???N?g??
+	{
+		_WCSCPY_S( Dest, BufferBytes, CurrentDir ) ;
+		DestBytes += _WCSLEN( Dest ) * sizeof( wchar_t ) ;
+
+		CharNum = GetStringCharNum(  ( const char * )CurrentDir, WCHAR_T_CHARCODEFORMAT ) ;
+		if( CharNum != 0 )
+		{
+			LastCharAddress = ( char * )GetStringCharAddress( ( const char * )CurrentDir, WCHAR_T_CHARCODEFORMAT, CharNum - 1 ) ;
+			LastCharCode    = GetCharCode( LastCharAddress, WCHAR_T_CHARCODEFORMAT, &LastCharBytes ) ;
+			if( LastCharCode == '\\' || LastCharCode == '/' )
+			{
+				PutCharCode( '\0', WCHAR_T_CHARCODEFORMAT, LastCharAddress, BUFFERBYTES_CANCEL ) ;
+				DestBytes -= LastCharBytes ;
+			}
+		}
+	}
+
+	for(;;)
+	{
+		CharCode1 = GetCharCode( ( const char * )&( ( BYTE * )Src )[ i ], WCHAR_T_CHARCODEFORMAT, &CharBytes1 ) ;
+		switch( CharCode1 )
+		{
+		case '\0' :
+			if( k != 0 )
+			{
+				CharCode2 = GetCharCode( ( const char * )&( ( BYTE * )Dest )[ 0 ], WCHAR_T_CHARCODEFORMAT, &CharBytes2 ) ;
+				if( CharCode2 != '\0' )
+				{
+					DestBytes += PutCharCode( '\\', WCHAR_T_CHARCODEFORMAT, ( char * )&( ( BYTE * )Dest )[ DestBytes ], BufferBytes - DestBytes ) ;
+				}
+				_WCSCPY_S( ( wchar_t * )&( ( BYTE * )Dest )[ DestBytes ], BufferBytes - DestBytes, iden ) ;
+				DestBytes = _WCSLEN( Dest ) * sizeof( wchar_t ) ;
+				k  = 0 ;
+			}
+			goto END ;
+
+		case '\\' :
+		case '/' :
+			// ?Å˜?????????????????X?L?b?v
+			if( k == 0 )
+			{
+				i += CharBytes1 ;
+				break ;
+			}
+			if( _WCSCMP( iden, L"." ) == 0 )
+			{
+				// ????????????
+			}
+			else
+			if( _WCSCMP( iden, L".." ) == 0 )
+			{
+				// ?????????f?B???N?g????
+				PutCharCode( '\0', WCHAR_T_CHARCODEFORMAT, ( char * )&( ( BYTE * )Dest )[ DestBytes ], BufferBytes - DestBytes ) ;
+				CharNum         = GetStringCharNum(  ( const char * )Dest, WCHAR_T_CHARCODEFORMAT ) ;
+				LastCharAddress = ( char * )GetStringCharAddress( ( const char * )Dest, WCHAR_T_CHARCODEFORMAT, CharNum - 1 ) ;
+				LastCharCode    = GetCharCode( LastCharAddress, WCHAR_T_CHARCODEFORMAT, &LastCharBytes ) ;
+				DestBytes -= LastCharBytes ;
+				for(;;)
+				{
+					if( LastCharCode == '\\' || LastCharCode == '/' || LastCharCode == ':' )
+					{
+						break ;
+					}
+
+					PutCharCode( '\0', WCHAR_T_CHARCODEFORMAT, ( char * )&( ( BYTE * )Dest )[ DestBytes ], BufferBytes - DestBytes ) ;
+					CharNum -- ;
+					LastCharAddress = ( char * )GetStringCharAddress( ( const char * )Dest, WCHAR_T_CHARCODEFORMAT, CharNum - 1 ) ;
+					LastCharCode    = GetCharCode( LastCharAddress, WCHAR_T_CHARCODEFORMAT, &LastCharBytes ) ;
+					DestBytes -= LastCharBytes ;
+				}
+
+				if( LastCharCode != ':' )
+				{
+					PutCharCode( '\0', WCHAR_T_CHARCODEFORMAT, ( char * )&( ( BYTE * )Dest )[ DestBytes ], BufferBytes - DestBytes ) ;
+				}
+				else
+				{
+					if( BufferBytes - DestBytes > ( size_t )LastCharBytes )
+					{
+						DestBytes += LastCharBytes ;
+					}
+				}
+			}
+			else
+			{
+				CharCode2 = GetCharCode( ( const char * )&( ( BYTE * )Dest )[ 0 ], WCHAR_T_CHARCODEFORMAT, &CharBytes2 ) ;
+				if( CharCode2 != '\0' )
+				{
+					DestBytes += PutCharCode( '\\', WCHAR_T_CHARCODEFORMAT, ( char * )&( ( BYTE * )Dest )[ DestBytes ], BufferBytes - DestBytes ) ;
+				}
+				_WCSCPY_S( ( wchar_t * )&( ( BYTE * )Dest )[ DestBytes ], BufferBytes - DestBytes, iden ) ;
+				DestBytes = _WCSLEN( Dest ) * sizeof( wchar_t ) ;
+			}
+
+			k = 0 ;
+			i += CharBytes1 ;
+			break ;
+		
+		default :
+			k += PutCharCode( CharUp ? CHARUP( CharCode1 ) : CharCode1, WCHAR_T_CHARCODEFORMAT, ( char * )&( ( BYTE * )iden )[ k ], sizeof( iden ) - k ) ;
+			     PutCharCode( '\0',                                     WCHAR_T_CHARCODEFORMAT, ( char * )&( ( BYTE * )iden )[ k ], sizeof( iden ) - k ) ;
+
+			i += CharBytes1 ;
+			break ;
+		}
+	}
+	
+END :
+	// ?????I??
+	return 0 ;
+#endif
+}
+
+// ?t?@?C?????????????????????????????????????p?XÅfÅı?????t?@?C???????f?B???N?g???p?X??????????
+// ?t???p?X???????K?v???????A?t?@?C????????????????
+// DirPath ???IÅf[?? ?? ?}?[?N???t??????
+static int DXA_DIR_AnalysisFileNameAndDirPath( DXARC *DXA, const BYTE *Src, BYTE *FileName, size_t FileNameBytes, BYTE *DirPath, size_t DirPathBytes )
+{
+	int   i ;
+	int   Last ;
+	int   LastCharBytes ;
+	DWORD CharCode ;
+	int   CharBytes ;
+	
+	// ?t?@?C??????Åh????o??
+	i    = 0 ;
+	Last = -1 ;
+	for(;;)
+	{
+		CharCode = GetCharCode( ( const char * )&Src[ i ], DXA->CharCodeFormat, &CharBytes ) ;
+		if( CharCode == '\0' )
+		{
+			break ;
+		}
+
+		if( CharCode == '\\' || CharCode == '/' || CharCode == '\0' || CharCode == ':' )
+		{
+			Last          = i ;
+			LastCharBytes = CharBytes ;
+		}
+
+		i += CharBytes ;
+	}
+
+	if( FileName != NULL )
+	{
+		if( Last != -1 )
+		{
+			if( FileNameBytes > ( size_t )( Last + LastCharBytes ) )
+			{
+				CL_strncpy_s( DXA->CharCodeFormat, ( char * )FileName, FileNameBytes, ( const char * )&Src[ Last + LastCharBytes ], ( int )( ( FileNameBytes - ( Last + LastCharBytes ) ) / GetCharCodeFormatUnitSize( DXA->CharCodeFormat ) ) ) ;
+			}
+		}
+		else
+		{
+			CL_strncpy_s( DXA->CharCodeFormat, ( char * )FileName, FileNameBytes, ( const char * )Src, ( int )( FileNameBytes / GetCharCodeFormatUnitSize( DXA->CharCodeFormat ) ) ) ;
+		}
+	}
+	
+	// ?f?B???N?g???p?X??Åh????o??
+	if( DirPath != NULL )
+	{
+		if( Last != -1 )
+		{
+			if( DirPathBytes > ( size_t )Last + 1 )
+			{
+				_MEMCPY( DirPath, Src, ( size_t )Last ) ;
+				PutCharCode( '\0', DXA->CharCodeFormat, ( char * )&DirPath[ Last ], BUFFERBYTES_CANCEL ) ;
+			}
+		}
+		else
+		{
+			PutCharCode( '\0', DXA->CharCodeFormat, ( char * )&DirPath[ 0 ], DirPathBytes ) ;
+		}
+	}
+	
+	// ?I??
+	return 0 ;
+}
+
+// CmpStr ???????? Src ??ÅgK?Åˆ??????????????Åf??Å~??( 0:ÅgK?Åˆ????  -1:ÅgK?Åˆ?????? )
+static int DXA_DIR_FileNameCmp( DXARC *DXA, const BYTE *Src, const BYTE *CmpStr )
+{
+	const BYTE *s, *c ;
+	DWORD SrcCharCode ;
+	int   SrcCharBytes ;
+	DWORD CmpCharCode ;
+	int   CmpCharBytes ;
+
+	s = Src ;
+	c = CmpStr ;
+	for(;;)
+	{
+		SrcCharCode = GetCharCode( ( const char * )s, DXA->CharCodeFormat, &SrcCharBytes ) ;
+		CmpCharCode = GetCharCode( ( const char * )c, DXA->CharCodeFormat, &CmpCharBytes ) ;
+
+		if( SrcCharCode != '\0' && CmpCharCode == '\0' )
+		{
+			return -1 ;
+		}
+
+		if( SrcCharCode == '\0' && CmpCharCode != '\0' )
+		{
+			if( CmpCharCode != '*' )
+			{
+				return -1 ;
+			}
+
+			while( CmpCharCode == '*' )
+			{
+				c += CmpCharBytes ;
+				CmpCharCode = GetCharCode( ( const char * )c, DXA->CharCodeFormat, &CmpCharBytes ) ;
+			}
+			if( CmpCharCode != '\0' )
+			{
+				return -1 ;
+			}
+
+			break ;
+		}
+
+		if( SrcCharCode == '\0' && CmpCharCode == '\0' )
+		{
+			break ;
+		}
+
+		switch( CmpCharCode )
+		{
+		case '?':
+			c += CmpCharBytes ;
+			s += SrcCharBytes ;
+			break;
+
+		case '*':
+			while( CmpCharCode == '*' )
+			{
+				c += CmpCharBytes ;
+				CmpCharCode = GetCharCode( ( const char * )c, DXA->CharCodeFormat, &CmpCharBytes ) ;
+			}
+			if( CmpCharCode == '\0' )
+			{
+				return 0 ;
+			}
+
+			while( SrcCharCode != '\0' && SrcCharCode != CmpCharCode )
+			{
+				s += SrcCharBytes ;
+				SrcCharCode = GetCharCode( ( const char * )s, DXA->CharCodeFormat, &SrcCharBytes ) ;
+			}
+			if( SrcCharCode == '\0' )
+			{
+				return -1 ;
+			}
+
+			c += CmpCharBytes ;
+			s += SrcCharBytes ;
+			break;
+
+		default:
+			if( CmpCharCode != SrcCharCode )
+			{
+				return -1 ;
+			}
+
+			c += CmpCharBytes ;
+			s += SrcCharBytes ;
+			break;
+		}
+
+		if( ( CmpCharCode == '\0' && SrcCharCode != '\0' ) ||
+			( CmpCharCode != '\0' && SrcCharCode == '\0' ) )
+		{
+			return -1 ;
+		}
+	}
+
+	return 0 ;
+}
+
+// ?A?[?J?C?u?t?@?C?????t?H???_?????Åò?????t?@?C?????J????????????Åg???( -1:?A?[?J?C?u????????ÅeÅ˜????????????  0:ÅeÅ˜?????? )
+static int DXA_DIR_OpenTest( const wchar_t *FilePath, int *ArchiveIndex, BYTE *ArchiveFilePath, size_t BufferBytes )
+{
+	int   i ;
+	int   len ;
+	int   arcindex ;
+	wchar_t fullpath[ FILEPATH_MAX ] ;
+	wchar_t fullpath_up[ FILEPATH_MAX ] ;
+	wchar_t path[ FILEPATH_MAX ] ;
+	wchar_t temp[ FILEPATH_MAX ] ;
+	wchar_t dir[ FILEPATH_MAX ] ;
+	wchar_t *p ;
+	int   BackUseDirectoryPathCharValid ;
+	DWORD BackUseDirectoryPathCharCode ;
+	int   BackUseDirectoryPathCharBytes ;
+
+	// ?t???p?X??Åg???
+	if( DXARCD.NotArchivePathCharUp )
+	{
+		DXA_DIR_ConvertFullPath( FilePath, fullpath, sizeof( fullpath ), 0 ) ;
+		CL_strcpy( WCHAR_T_CHARCODEFORMAT, ( char * )fullpath_up, ( char * )fullpath ) ;
+		CL_strupr( WCHAR_T_CHARCODEFORMAT, ( char * )fullpath_up ) ;
+	}
+	else
+	{
+		DXA_DIR_ConvertFullPath( FilePath, fullpath, sizeof( fullpath ), 1 ) ;
+	}
+
+	// ÅeOÅÒ????g?p?????A?[?J?C?u???p?X??Åg??Å˜???Åˆ??Åg??Å˜?A?[?J?C?u???g?p????
+	BackUseDirectoryPathCharValid = FALSE ;
+	if( DXARCD.BackUseDirectoryPathLength != 0 && _MEMCMP( fullpath, DXARCD.BackUseDirectory, DXARCD.BackUseDirectoryPathLength ) == 0 )
+	{
+		BackUseDirectoryPathCharValid = TRUE ;
+		BackUseDirectoryPathCharCode  = GetCharCode( ( const char * )&( ( BYTE * )fullpath )[ DXARCD.BackUseDirectoryPathLength ], WCHAR_T_CHARCODEFORMAT, &BackUseDirectoryPathCharBytes ) ;
+	}
+	if( BackUseDirectoryPathCharValid &&
+		( BackUseDirectoryPathCharCode == '\\' || BackUseDirectoryPathCharCode == '/' ) )
+	{
+		// ÅeOÅÒ??g?p?????c?w?`?t?@?C?????J??
+		arcindex = DXA_DIR_OpenArchive( DXARCD.BackUseDirectory, NULL, -1, FALSE, FALSE, DXARCD.BackUseArchiveIndex ) ;
+		if( arcindex == -1 )
+		{
+			return -1 ;
+		}
+
+		// ?c?w?`?t?@?C???????????????~???p?X??????????
+		if( DXARCD.NotArchivePathCharUp )
+		{
+			p = ( wchar_t * )&( ( BYTE * )fullpath_up )[ DXARCD.BackUseDirectoryPathLength + BackUseDirectoryPathCharBytes ] ;
+		}
+		else
+		{
+			p = ( wchar_t * )&( ( BYTE * )fullpath    )[ DXARCD.BackUseDirectoryPathLength + BackUseDirectoryPathCharBytes ] ;
+		}
+	}
+	else
+	{
+		DWORD CharCode1 ;
+		int   CharBytes1 ;
+		DWORD CharCode2 ;
+		int   CharBytes2 ;
+
+		// ÅeOÅÒ??????????p?X?????Åˆ????????Åf??Å~??
+
+		// ?f?B???N?g????????????Åf??????s??
+		p   = fullpath ;
+		len = 0 ;
+		for(;;)
+		{
+			// ?l?b?g???[?N??ÅÒ????????????Åˆ?????p????
+			if( p - fullpath == 0 )
+			{
+				// fullpath ???P?Å˜???????Q?Å˜????????Åg?
+				CharCode1 = GetCharCode( ( const char * )&( ( BYTE * )fullpath )[ 0 ], WCHAR_T_CHARCODEFORMAT, &CharBytes1 ) ;
+				CharCode2 = 0 ;
+				if( CharCode1 != 0 )
+				{
+					CharCode2 = GetCharCode( ( const char * )&( ( BYTE * )fullpath )[ CharBytes1 ], WCHAR_T_CHARCODEFORMAT, &CharBytes2 ) ;
+				}
+
+				if( CharCode1 == '\\' && CharCode2 == '\\' )
+				{
+					len += PutCharCode( '\\', WCHAR_T_CHARCODEFORMAT, ( char * )&( ( BYTE * )path )[ len ], sizeof( path ) - len ) ;
+					len += PutCharCode( '\\', WCHAR_T_CHARCODEFORMAT, ( char * )&( ( BYTE * )path )[ len ], sizeof( path ) - len ) ;
+					       PutCharCode( '\0', WCHAR_T_CHARCODEFORMAT, ( char * )&( ( BYTE * )path )[ len ], sizeof( path ) - len ) ;
+
+					p = ( wchar_t * )( ( BYTE * )p + CharBytes1 + CharBytes2 ) ;
+				}
+			}
+
+			// ?f?B???N?g????????????
+			i = 0 ;
+			for(;;)
+			{
+				CharCode1 = GetCharCode( ( const char * )p, WCHAR_T_CHARCODEFORMAT, &CharBytes1 ) ;
+				p = ( wchar_t * )( ( BYTE * )p + CharBytes1 ) ;
+				if( ( wchar_t * )( ( BYTE * )p - CharBytes1 ) != fullpath && ( CharCode1 == '\0' || CharCode1 == '/' || CharCode1 == '\\' ) )
+				{
+					break ;
+				}
+
+				len += PutCharCode( CharCode1, WCHAR_T_CHARCODEFORMAT, ( char * )&( ( BYTE * )path )[ len ], sizeof( path ) - len ) ;
+				i   += PutCharCode( CharCode1, WCHAR_T_CHARCODEFORMAT, ( char * )&( ( BYTE * )dir  )[ i   ], sizeof( dir  ) - i ) ;
+
+			}
+
+			if( CharCode1 == '\0' || i == 0 )
+			{
+				return -1 ;
+			}
+
+			PutCharCode( '\0', WCHAR_T_CHARCODEFORMAT, ( char * )&( ( BYTE * )path )[ len ], sizeof( path ) - len ) ;
+			PutCharCode( '\0', WCHAR_T_CHARCODEFORMAT, ( char * )&( ( BYTE * )dir  )[ i   ], sizeof( dir  ) - i   ) ;
+
+			// ?t?H???_????DX?A?[?J?C?u?t?@?C??????????
+			{
+				int TempLen ;
+
+				_MEMCPY( temp, path, len ) ;
+				TempLen = len ;
+
+				TempLen += PutCharCode( '.', WCHAR_T_CHARCODEFORMAT, ( char * )&( ( BYTE * )temp )[ TempLen ], sizeof( temp ) - TempLen ) ;
+				if( DXARCD.ArchiveExtensionLength == 0 )
+				{
+					if( DXARCD.NotArchivePathCharUp )
+					{
+						TempLen += PutCharCode( 'd',  WCHAR_T_CHARCODEFORMAT, ( char * )&( ( BYTE * )temp )[ TempLen ], sizeof( temp ) - TempLen ) ;
+						TempLen += PutCharCode( 'x',  WCHAR_T_CHARCODEFORMAT, ( char * )&( ( BYTE * )temp )[ TempLen ], sizeof( temp ) - TempLen ) ;
+						TempLen += PutCharCode( 'a',  WCHAR_T_CHARCODEFORMAT, ( char * )&( ( BYTE * )temp )[ TempLen ], sizeof( temp ) - TempLen ) ;
+					}
+					else
+					{
+						TempLen += PutCharCode( 'D',  WCHAR_T_CHARCODEFORMAT, ( char * )&( ( BYTE * )temp )[ TempLen ], sizeof( temp ) - TempLen ) ;
+						TempLen += PutCharCode( 'X',  WCHAR_T_CHARCODEFORMAT, ( char * )&( ( BYTE * )temp )[ TempLen ], sizeof( temp ) - TempLen ) ;
+						TempLen += PutCharCode( 'A',  WCHAR_T_CHARCODEFORMAT, ( char * )&( ( BYTE * )temp )[ TempLen ], sizeof( temp ) - TempLen ) ;
+					}
+					TempLen += PutCharCode( '\0', WCHAR_T_CHARCODEFORMAT, ( char * )&( ( BYTE * )temp )[ TempLen ], sizeof( temp ) - TempLen ) ;
+				}
+				else
+				{
+					_WCSCPY_S( ( wchar_t * )&( ( BYTE * )temp )[ TempLen ], sizeof( temp ) - TempLen, DXARCD.ArchiveExtension ) ;
+				}
+			}
+
+			// ?c?w?`?t?@?C?????????J????????
+			arcindex = DXA_DIR_OpenArchive( temp ) ;
+			if( arcindex != -1 )
+			{
+				break ;
+			}
+
+			// ?J?????????????????KÅew??
+			len += PutCharCode( '\\', WCHAR_T_CHARCODEFORMAT, ( char * )&( ( BYTE * )path )[ len ], sizeof( path ) - len ) ;
+		}
+
+		// ?J????????ÅÒ???????????ÅeÅ˜????
+		_WCSCPY_S( DXARCD.BackUseDirectory, sizeof( DXARCD.BackUseDirectory ), temp ) ;
+//		if( DXARCD.ArchiveExtensionLength == 0 )
+//		{
+//			_MEMCPY( DXARCD.BackUseDirectory, temp, len + ( 1 /* . */ + 3 /* DXA */ + 1 /* '\0' */ ) * sizeof( wchar_t ) ) ;
+//		}
+//		else
+//		{
+//			_MEMCPY( DXARCD.BackUseDirectory, temp, len + ( 1 /* . */ + DXARCD.ArchiveExtensionLength + 1 /* '\0' */ ) * sizeof( wchar_t ) ) ;
+//		}
+		DXARCD.BackUseDirectoryPathLength = len ;
+		DXARCD.BackUseArchiveIndex        = arcindex ;
+
+		if( DXARCD.NotArchivePathCharUp )
+		{
+			p = fullpath_up + ( p - fullpath ) ;
+		}
+	}
+
+	// ???????Z?b?g????
+	*ArchiveIndex = arcindex;
+
+	if( ArchiveFilePath )
+	{
+		int DestCharCodeFormat ;
+
+		DestCharCodeFormat = DXARCD.Archive[ arcindex ]->Archive.CharCodeFormat ;
+		ConvString( ( const char * )p, -1, WCHAR_T_CHARCODEFORMAT, ( char * )ArchiveFilePath, BufferBytes, DestCharCodeFormat ) ;
+	}
+
+	// ?I??
+	return 0;
+}
+
+// ?A?[?J?C?u?t?@?C?????J??
+static int DXA_DIR_OpenArchive( const wchar_t *FilePath, void *FileImage, int FileSize, int FileImageCopyFlag, int FileImageReadOnly, int ArchiveIndex, int OnMemory, int ASyncThread )
+{
+	int					i ;
+	int					index ;
+	int					newindex ;
+	DXARC_DIR_ARCHIVE *	arc ;
+	DXARC_DIR_ARCHIVE *	tarc ;
+	DXARC				temparc ;
+
+	// ?A?[?J?C?u???wÅf??????????Åˆ???????????g?p????
+	if( ArchiveIndex != -1 )
+	{
+		tarc = DXARCD.Archive[ ArchiveIndex ] ;
+		if( tarc != NULL )
+		{
+			if(	_WCSCMP( FilePath, tarc->Path ) == 0 )
+			{
+				DXARCD.Archive[ ArchiveIndex ]->UseCounter ++ ;
+				return ArchiveIndex ;
+			}
+		}
+	}
+
+	// ?????J????????????Åf??Å~??
+	newindex = -1 ;
+	index    = 0 ;
+	for( i = 0 ; i < DXARCD.ArchiveNum ; index ++ )
+	{
+		arc = DXARCD.Archive[ index ] ;
+		if( arc == NULL )
+		{
+			newindex = index ;
+			continue ;
+		}
+		
+		i ++ ;
+
+		if( _WCSCMP( arc->Path, FilePath ) == 0 )
+		{
+			// ?????J?????????????Åˆ???????C?Åg?f?b?N?X??????
+			arc->UseCounter ++ ;
+			return index ;
+		}
+	}
+	
+	// ???????????Åˆ???V?K???f?[?^??Åf?ÅÒ?????
+
+	// ?n?Åg?h??????????Åht?????Åˆ???g?p?????????????A?[?J?C?u?n?Åg?h????ÅÒ???????
+	if( DXARCD.ArchiveNum == DXA_DIR_MAXARCHIVENUM )
+	{
+		// ???g?p???n?Åg?h????ÅÒ???
+		DXA_DIR_CloseWaitArchive() ;
+		
+		// ??????????Åht?????????Åˆ???G?ÅÒ?[
+		if( DXARCD.ArchiveNum == DXA_DIR_MAXARCHIVENUM )
+		{
+			return -1 ;
+		}
+	} 
+	if( newindex == -1 )
+	{
+		for( newindex = 0 ; DXARCD.Archive[ newindex ] != NULL ; newindex ++ ){}
+	}
+
+	// ?A?[?J?C?u?t?@?C????ÅeÅ˜?????????????mÅhF???????ÅÒ??ÅÒ?????
+	DXA_Initialize( &temparc ) ;
+	if( FileImage != NULL )
+	{
+		// ??????????ÅgW?J???????t?@?C???C???[?W???g?p???????Åˆ
+		if( DXA_OpenArchiveFromMem( &temparc, FileImage, FileSize, FileImageCopyFlag, FileImageReadOnly, DXARCD.ValidKeyString == TRUE ? DXARCD.KeyString : NULL, FilePath ) < 0 )
+			return -1 ;
+	}
+	else
+	if( OnMemory == TRUE )
+	{
+		// ????????Åg??????????Åˆ
+		if( DXA_OpenArchiveFromFileUseMem( &temparc, FilePath, DXARCD.ValidKeyString == TRUE ? DXARCD.KeyString : NULL, ASyncThread ) < 0 )
+			return -1 ;
+	}
+	else
+	{
+		// ?t?@?C??????Åg??????????Åˆ
+		if( DXA_OpenArchiveFromFile( &temparc, FilePath, DXARCD.ValidKeyString == TRUE ? DXARCD.KeyString : NULL ) < 0 )
+			return -1 ;
+	}
+
+	// ?V?????A?[?J?C?u?f?[?^?p???????????m??????
+	arc = DXARCD.Archive[ newindex ] = ( DXARC_DIR_ARCHIVE * )DXALLOC( sizeof( DXARC_DIR_ARCHIVE ) ) ;
+	if( DXARCD.Archive[ newindex ] == NULL )
+	{
+		DXA_CloseArchive( &temparc ) ;
+		DXA_Terminate( &temparc ) ;
+		return -1 ;
+	}
+
+	// ?????Z?b?g
+	_MEMCPY( &arc->Archive, &temparc, sizeof( DXARC ) ) ;
+	arc->UseCounter = 1 ;
+	_WCSCPY_S( arc->Path, sizeof( arc->Path ), FilePath ) ;
+
+	// ?g?pÅfÅı???A?[?J?C?u???Åh??Åe?????
+	DXARCD.ArchiveNum ++ ;
+
+	// ?C?Åg?f?b?N?X??????
+	return newindex ;
+}
+
+// ?????J???????????A?[?J?C?u???n?Åg?h??????Åg?????( ????Åfl: -1=???????? 0????:?n?Åg?h?? )
+static int DXA_DIR_GetArchive( const wchar_t *FilePath, void *FileImage )
+{
+	int i, index ;
+	DXARC_DIR_ARCHIVE *arc ;
+
+	index = 0 ;
+	for( i = 0 ; i < DXARCD.ArchiveNum ; index ++ )
+	{
+		arc = DXARCD.Archive[index] ;
+		if( arc == NULL )
+		{
+			continue ;
+		}
+
+		i ++ ;
+
+		if( FilePath )
+		{
+			if( _WCSCMP( arc->Path, FilePath ) == 0 )
+			{
+				return index ;
+			}
+		}
+		else
+		{
+			if( arc->Archive.MemoryImageCopyFlag )
+			{
+				if( arc->Archive.MemoryImageOriginal == FileImage )
+				{
+					return index ;
+				}
+			}
+			else
+			{
+				if( arc->Archive.MemoryImage == FileImage )
+				{
+					return index ;
+				}
+			}
+		}
+	}
+
+	return -1 ;
+}
+
+// ?A?[?J?C?u?t?@?C???????Å˜??
+static int DXA_DIR_CloseArchive( int ArchiveHandle )
+{
+	DXARC_DIR_ARCHIVE *arc ;
+
+	// ?g?p??????????????????ÅÒ????????I??
+	arc = DXARCD.Archive[ArchiveHandle] ;
+	if( arc == NULL || arc->UseCounter == 0 )
+	{
+		return -1 ;
+	}
+
+	// ?Q???J?E?Åg?^????????
+	arc->UseCounter -- ;
+
+	// ?I??
+	return 0 ;
+}
+
+// ?g?p??????????Åe??????????A?[?J?C?u?t?@?C????ÅeS?????Å˜??
+static void DXA_DIR_CloseWaitArchive( void )
+{
+	int i, Num, index ;
+	DXARC_DIR_ARCHIVE *arc ;
+	
+	Num = DXARCD.ArchiveNum ;
+	for( i = 0, index = 0 ; i < Num ; index ++ )
+	{
+		if( DXARCD.Archive[index] == NULL )
+		{
+			continue ;
+		}
+		i ++ ;
+
+		arc = DXARCD.Archive[index] ;
+
+		// ?g????????????ÅÒ?????????
+		if( arc->UseCounter > 0 )
+		{
+			continue ;
+		}
+
+		// ???n??
+		DXA_CloseArchive( &arc->Archive ) ;
+		DXA_Terminate( &arc->Archive ) ;
+		DXFREE( arc ) ;
+		DXARCD.Archive[index] = NULL ;
+		
+		// ?A?[?J?C?u???Åh????????
+		DXARCD.ArchiveNum -- ;
+	}
+}
+
+// ?A?[?J?C?u???f?B???N?g???????Åò???????????ÅÒ??ÅÒ?
+extern	int DXA_DIR_Initialize( void )
+{
+	// ?????ÅÒ??ÅÒ??????????Åˆ??ÅÒ?????????
+	if( DXARCD.InitializeFlag )
+	{
+		return -1 ;
+	}
+
+	// ?N???e?B?J???Z?N?V?Åˆ?Åg???ÅÒ??ÅÒ?
+	CriticalSection_Initialize( &DXARCD.CriticalSection ) ;
+
+//	_MEMSET( &DXARCD, 0, sizeof( DXARC_DIR ) ) ;
+//	DXA_DIR_Terminate() ;
+
+	// ?g?p?????????????A?[?J?C?u?t?@?C????ÅÒ???????
+	DXA_DIR_CloseWaitArchive() ;
+
+	// ?ÅÒ??ÅÒ??????t?ÅÒ?O???Åò????
+	DXARCD.InitializeFlag = TRUE ;
+
+	// ?I??
+	return 0 ;
+}
+
+
+// ?A?[?J?C?u???f?B???N?g???????Åò?????????????n??
+extern int DXA_DIR_Terminate( void )
+{
+	// ???????n???????????Åˆ??ÅÒ?????????
+	if( DXARCD.InitializeFlag == FALSE )
+	{
+		return -1 ;
+	}
+
+	// ?g?p?????????????A?[?J?C?u?t?@?C????ÅÒ???????
+	DXA_DIR_CloseWaitArchive() ;
+
+	// ?N???e?B?J???Z?N?V?Åˆ?Åg?????n??
+	CriticalSection_Delete( &DXARCD.CriticalSection ) ;
+
+	// ?ÅÒ??ÅÒ??????t?ÅÒ?O??Åg|??
+	DXARCD.InitializeFlag = FALSE ;
+
+	// ?I??
+	return 0 ;
+}
+
+// ?A?[?J?C?u?t?@?C?????p?X??Åe??Å˜?????????????????????t?ÅÒ?O???Z?b?g????
+extern int DXA_DIR_SetNotArchivePathCharUp( int NotArchivePathCharUpFlag )
+{
+	DXARCD.NotArchivePathCharUp = NotArchivePathCharUpFlag ;
+
+	// ?I??
+	return 0 ;
+}
+
+// ?A?[?J?C?u?t?@?C?????gÅf??q????Åf?????
+extern int DXA_DIR_SetArchiveExtension( const wchar_t *Extension )
+{
+	int Length ;
+	
+	Length = ( int )_WCSLEN( Extension ) ;
+
+	if( Length >= 64 || Extension == NULL || Extension[0] == _T( '\0' ) )
+	{
+		DXARCD.ArchiveExtension[ 0 ]  = 0 ;
+		DXARCD.ArchiveExtensionLength = 0 ;
+	}
+	else
+	{
+		DXARCD.ArchiveExtensionLength = Length ;
+		_WCSCPY_S( DXARCD.ArchiveExtension, sizeof( DXARCD.ArchiveExtension ), Extension ) ;
+	}
+
+	// ?I??
+	return 0 ;
+}
+
+// ?A?[?J?C?u?t?@?C????Åf??????t?H???_??????????ÅeÅ˜?????????Åˆ?A?????????D??????????????Åf?????( 1:?t?H???_???D?? 0:?c?w?A?[?J?C?u?t?@?C?????D??(?f?t?H???g) )
+extern int DXA_DIR_SetDXArchivePriority( int Priority )
+{
+	DXARCD.DXAPriority = Priority ;
+
+	// ?I??
+	return 0 ;
+}
+
+// ?A?[?J?C?u?t?@?C???????Å˜????????Åf?????
+extern int DXA_DIR_SetKeyString( const char *KeyString )
+{
+	if( KeyString == NULL )
+	{
+		DXARCD.ValidKeyString = FALSE ;
+	}
+	else
+	{
+		DXARCD.ValidKeyString = TRUE ;
+		if( _STRLEN( KeyString ) > DXA_KEYV2STR_LENGTH )
+		{
+			_MEMCPY( DXARCD.KeyString, KeyString, DXA_KEYV2STR_LENGTH ) ;
+			DXARCD.KeyString[ DXA_KEYV2STR_LENGTH ] = '\0' ;
+		}
+		else
+		{
+			_STRCPY( DXARCD.KeyString, KeyString ) ;
+		}
+	}
+
+	// ?I??
+	return 0 ;
+}
+
+// ?t?@?C??????????Åg??????????Åh
+extern LONGLONG DXA_DIR_LoadFile( const wchar_t *FilePath, void *Buffer, int BufferSize )
+{
+	LONGLONG siz ;
+	DWORD_PTR handle ;
+
+	handle = DXA_DIR_Open( FilePath ) ;
+	if( handle == 0 )
+	{
+		return false ;
+	}
+
+	DXA_DIR_Seek( handle, 0L, SEEK_END ) ;
+	siz = DXA_DIR_Tell( handle ) ;
+	DXA_DIR_Seek( handle, 0L, SEEK_SET ) ;
+
+	if( siz <= BufferSize )
+	{
+		DXA_DIR_Read( Buffer, ( size_t )siz, 1, handle ) ;
+	}
+
+	DXA_DIR_Close( handle ) ;
+
+	// ?I??
+	return siz ;
+}
+
+// DXA_DIR_Open ?????{???Åh
+extern DWORD_PTR DXA_DIR_Open( const wchar_t *FilePath, int UseCacheFlag, int BlockReadFlag, int UseASyncReadFlag )
+{
+	int index ;
+	DXARC_DIR_FILE *file ;
+//	char DXAErrorStr[ FILEPATH_MAX ] ;
+	BYTE DxaInFilePath[ FILEPATH_MAX ] ;
+
+	// ?ÅÒ??ÅÒ????????????????????ÅÒ??ÅÒ?????
+	if( DXARCD.InitializeFlag == FALSE )
+	{
+		DXA_DIR_Initialize() ;
+	}
+
+	// ?N???e?B?J???Z?N?V?Åˆ?Åg????Åg?
+	CRITICALSECTION_LOCK( &DXARCD.CriticalSection ) ;
+
+//	UseCacheFlag  = UseCacheFlag ;
+//	BlockReadFlag = BlockReadFlag ;
+//	DXAErrorStr[ 0 ] = 0 ;
+
+	// ?????f?[?^??ÅfT??
+	if( DXARCD.FileNum == DXA_DIR_MAXFILENUM )
+	{
+		// ?N???e?B?J???Z?N?V?Åˆ?Åg??ÅÒ???
+		CriticalSection_Unlock( &DXARCD.CriticalSection ) ;
+
+		DXST_LOGFILE_ADDUTF16LE( "\x0c\x54\x42\x66\x6b\x30\x8b\x95\x51\x30\x8b\x30\xd5\x30\xa1\x30\xa4\x30\xeb\x30\x6e\x30\x70\x65\x4c\x30\x50\x96\x4c\x75\x92\x30\x85\x8d\x48\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Åg??????J?????t?@?C?????Åh?????E??ÅfÅL????????\n" @*/ ) ;
+		return 0 ;
+	}
+	for( index = 0 ; DXARCD.File[index] != NULL ; index ++ ){}
+
+	// ?????????m??
+	DXARCD.File[ index ] = (DXARC_DIR_FILE *)DXALLOC( sizeof( DXARC_DIR_FILE ) ) ;
+	if( DXARCD.File[ index ] == NULL )
+	{
+		// ?N???e?B?J???Z?N?V?Åˆ?Åg??ÅÒ???
+		CriticalSection_Unlock( &DXARCD.CriticalSection ) ;
+
+		DXST_LOGFILE_ADDUTF16LE( "\xd5\x30\xa1\x30\xa4\x30\xeb\x30\x6e\x30\xc5\x60\x31\x58\x92\x30\x3c\x68\x0d\x7d\x59\x30\x8b\x30\xe1\x30\xe2\x30\xea\x30\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"?t?@?C???????????iÅh[?????????????m??????Åhs????????\n" @*/ ) ;
+		return 0 ;
+	}
+	file = DXARCD.File[index] ;
+
+	// ?A?[?J?C?u?t?@?C?????t?H???_???????????D????????????????????
+	if( DXARCD.DXAPriority == 0 )
+	{
+		int FileOpen = FALSE ;
+
+		// ?A?[?J?C?u???D?????????Åˆ
+
+		// ?A?[?J?C?u?t?@?C??????????Åf??Å~??
+		if( DXA_DIR_OpenTest( FilePath, ( int * )&file->UseArchiveIndex, DxaInFilePath, sizeof( DxaInFilePath ) ) == 0 )
+		{
+			// ?f?B???N?g??????Åg??????c?w?`?t?@?C?????J??????????ÅfÅı?????wÅf????t?@?C????Åg???????????????
+			if( DXA_STREAM_Initialize( &file->DXAStream, &DXARCD.Archive[ file->UseArchiveIndex ]->Archive, DxaInFilePath, UseASyncReadFlag ) < 0 )
+			{
+//				_STRCPY( DXAErrorStr, DXSTRING( "?c?w?`?t?@?C????ÅfÅı???wÅf????t?@?C????????????????????????\n" ) ) ;
+				DXA_DIR_CloseArchive( ( int )file->UseArchiveIndex ) ;
+			}
+			else
+			{
+				// ?A?[?J?C?u???g?p?????????t?ÅÒ?O???Åò????
+				file->UseArchiveFlag = 1 ;
+
+				FileOpen = TRUE ;
+			}
+		}
+
+		if( FileOpen == FALSE )
+		{
+			// ?A?[?J?C?u?t?@?C????????????????Åf????t?@?C??????Åg?????????Åf????s??
+			file->UseArchiveFlag = 0 ;
+
+			// ??Åf????t?@?C??????????Åf??Å~??
+			file->WinFilePointer_ = ReadOnlyFileAccessOpen( FilePath, UseCacheFlag, TRUE, UseASyncReadFlag ) ;
+			if( file->WinFilePointer_ == 0 )
+			{
+				goto ERR ;
+			}
+			else
+			{
+				FileOpen = TRUE ;
+			}
+		}
+	}
+	else
+	{
+		// ??Åf????t?@?C?????D?????????Åˆ
+
+		// ??Åf????t?@?C??????????Åf??Å~??
+		if( ( file->WinFilePointer_ = ReadOnlyFileAccessOpen( FilePath, UseCacheFlag, TRUE, UseASyncReadFlag ) ) != 0 )
+		{
+			// ?J????????Åf????t?@?C??????Åg?????????Åf????s??
+			file->UseArchiveFlag = 0 ;
+		}
+		else
+		{
+			// ?A?[?J?C?u?t?@?C??????????Åf??Å~??
+			if( DXA_DIR_OpenTest( FilePath, (int *)&file->UseArchiveIndex, DxaInFilePath, sizeof( DxaInFilePath ) ) == 0 )
+			{
+				// ?f?B???N?g??????Åg??????c?w?`?t?@?C?????J??????????ÅfÅı?????wÅf????t?@?C????Åg???????????????
+				if( DXA_STREAM_Initialize( &file->DXAStream, &DXARCD.Archive[ file->UseArchiveIndex ]->Archive, DxaInFilePath, UseASyncReadFlag ) < 0 )
+				{
+//					_STRCPY( DXAErrorStr, DXSTRING( "?c?w?`?t?@?C????ÅfÅı???wÅf????t?@?C????????????????????????\n" ) ) ;
+					DXA_DIR_CloseArchive( ( int )file->UseArchiveIndex ) ;
+					goto ERR ;
+				}
+				else
+				{
+					// ?A?[?J?C?u???g?p?????????t?ÅÒ?O???Åò????
+					file->UseArchiveFlag = 1 ;
+				}
+			}
+			else
+			{
+				// ???????????G?ÅÒ?[
+				goto ERR;
+			}
+		}
+	}
+
+	// ?n?Åg?h?????Åh??Åe?????
+	DXARCD.FileNum ++ ;
+
+	// ?N???e?B?J???Z?N?V?Åˆ?Åg??ÅÒ???
+	CriticalSection_Unlock( &DXARCD.CriticalSection ) ;
+
+	// ?C?Åg?f?b?N?X??????
+	return index | 0xF0000000 ;
+
+ERR:
+	// ????????ÅÒ???
+	if( DXARCD.File[index] != NULL ) DXFREE( DXARCD.File[index] ) ;
+	DXARCD.File[index] = NULL ;
+	
+	// ?G?ÅÒ?[?Å˜?????o??
+//	DXST_LOGFILEFMT_ADDW(( L"?t?@?C?? %s ???I?[?v?Åg????Åhs????????\n", FilePath )) ;
+//	if( DXAErrorStr[0] != '\0' ) DXST_LOGFILEFMT_ADDW(( "?c?w?`?G?ÅÒ?[?F%s", DXAErrorStr )) ;
+
+	// ?N???e?B?J???Z?N?V?Åˆ?Åg??ÅÒ???
+	CriticalSection_Unlock( &DXARCD.CriticalSection ) ;
+
+	// ?G?ÅÒ?[?I??
+	return 0 ;
+}
+
+// ?t?@?C???????Å˜??
+extern int DXA_DIR_Close( DWORD_PTR Handle )
+{
+	// ?N???e?B?J???Z?N?V?Åˆ?Åg????Åg?
+	CRITICALSECTION_LOCK( &DXARCD.CriticalSection ) ;
+
+	DXARC_DIR_FILE *file = DXARCD.File[Handle & 0x0FFFFFFF] ;
+
+	// ?g?p??????????????????ÅÒ????????I??
+	if( file == NULL )
+	{
+		// ?N???e?B?J???Z?N?V?Åˆ?Åg??ÅÒ???
+		CriticalSection_Unlock( &DXARCD.CriticalSection ) ;
+
+		return -1 ;
+	}
+	
+	// ?A?[?J?C?u???g?p??????????????????????
+	if( file->UseArchiveFlag == FALSE )
+	{
+		// ?g?p?????????????Åˆ???W??Åg??o?????t?@?C???|?C?Åg?^??ÅÒ???????
+		ReadOnlyFileAccessClose( file->WinFilePointer_ ) ;
+		file->WinFilePointer_ = 0 ;
+	}
+	else
+	{
+		// ?A?[?J?C?u???g?p???????????Åˆ???A?[?J?C?u???Q???Åh????????
+		
+		// ?A?[?J?C?u?t?@?C?????Q???Åh????????
+		DXA_DIR_CloseArchive( ( int )file->UseArchiveIndex ) ;
+
+		// ?A?[?J?C?u?t?@?C???????n??
+		DXA_STREAM_Terminate( &file->DXAStream ) ;
+	}
+
+	// ????????ÅÒ???????
+	DXFREE( file ) ;
+	DXARCD.File[Handle & 0x0FFFFFFF] = NULL ;
+	
+	// ?Åh????????
+	DXARCD.FileNum -- ;
+
+	// ?N???e?B?J???Z?N?V?Åˆ?Åg??ÅÒ???
+	CriticalSection_Unlock( &DXARCD.CriticalSection ) ;
+
+	// ?I??
+	return 0 ;
+}
+
+// ?t?@?C???|?C?Åg?^????Åfu????Åg?????
+extern	LONGLONG DXA_DIR_Tell( DWORD_PTR Handle )
+{
+	DXARC_DIR_FILE *file = DXARCD.File[Handle & 0x0FFFFFFF] ;
+	if( file == NULL )
+	{
+		return -1 ;
+	}
+
+	if( file->UseArchiveFlag == 0 )
+	{
+		return ReadOnlyFileAccessTell( file->WinFilePointer_ ) ;
+	}
+	else
+	{
+		return DXA_STREAM_Tell( &file->DXAStream ) ;
+	}
+}
+
+// ?t?@?C???|?C?Åg?^????Åfu?????X????
+extern int DXA_DIR_Seek( DWORD_PTR Handle, LONGLONG SeekPoint, int SeekType )
+{
+	DXARC_DIR_FILE *file = DXARCD.File[Handle & 0x0FFFFFFF] ;
+	if( file == NULL )
+	{
+		return -1 ;
+	}
+
+	if( file->UseArchiveFlag == 0 )
+	{
+		return ReadOnlyFileAccessSeek( file->WinFilePointer_, SeekPoint, SeekType ) ;
+	}
+	else
+	{
+		return DXA_STREAM_Seek( &file->DXAStream, SeekPoint, SeekType ) ;
+	}
+}
+
+// ?t?@?C???????f?[?^??Åg???????
+extern size_t DXA_DIR_Read( void *Buffer, size_t BlockSize, size_t BlockNum, DWORD_PTR Handle )
+{
+	DXARC_DIR_FILE *file = DXARCD.File[Handle & 0x0FFFFFFF] ;
+	if( file == NULL )
+	{
+		return ( size_t )-1 ;
+	}
+
+	if( file->UseArchiveFlag == 0 )
+	{
+		return ReadOnlyFileAccessRead( Buffer, BlockSize, BlockNum, file->WinFilePointer_ ) ;
+	}
+	else
+	{
+		return DXA_STREAM_Read( &file->DXAStream, Buffer, BlockSize * BlockNum ) / BlockSize ;
+	}
+}
+
+// ?t?@?C?????IÅf[??Åf??Å~??
+extern int DXA_DIR_Eof( DWORD_PTR Handle )
+{
+	DXARC_DIR_FILE *file = DXARCD.File[Handle & 0x0FFFFFFF] ;
+	if( file == NULL )
+	{
+		return -1 ;
+	}
+
+	if( file->UseArchiveFlag == 0 )
+	{
+		return ReadOnlyFileAccessEof( file->WinFilePointer_ ) ;
+	}
+	else
+	{
+		return DXA_STREAM_Eof( &file->DXAStream ) ;
+	}
+}
+
+extern	int DXA_DIR_ChDir( const wchar_t *Path )
+{
+	_WCHDIR( Path ) ;
+
+	return 0 ;
+}
+
+extern	int DXA_DIR_GetDir( wchar_t *Buffer )
+{
+	_WGETCWD( Buffer, BUFFERBYTES_CANCEL ) ;
+
+	return 0 ;
+}
+
+extern	int DXA_DIR_GetDirS( wchar_t *Buffer, size_t BufferBytes )
+{
+	_WGETCWD( Buffer, BufferBytes ) ;
+
+	return 0 ;
+}
+
+extern	int DXA_DIR_IdleCheck( DWORD_PTR Handle )
+{
+	DXARC_DIR_FILE *file = DXARCD.File[Handle & 0x0FFFFFFF] ;
+	if( file == NULL )
+	{
+		return -1 ;
+	}
+
+	if( file->UseArchiveFlag == 0 )
+	{
+		return ReadOnlyFileAccessIdleCheck( file->WinFilePointer_ ) ;
+	}
+	else
+	{
+		return DXA_STREAM_IdleCheck( &file->DXAStream ) ;
+	}
+}
+
+extern int DXA_DIR_IsDXA(DWORD_PTR Handle)
+{
+	DXARC_DIR_FILE* file = DXARCD.File[Handle & 0x0FFFFFFF];
+	if (file == NULL)
+	{
+		return -1;
+	}
+
+	return file->UseArchiveFlag;
+}
+
+// ????Åfl: -1=?G?ÅÒ?[  -1???O=FindHandle
+extern DWORD_PTR DXA_DIR_FindFirst( const wchar_t *FilePath, FILEINFOW *Buffer )
+{
+	DXA_DIR_FINDDATA *find ;
+	BYTE nPath[ FILEPATH_MAX ] ;
+
+	// ?????????m??
+	find = ( DXA_DIR_FINDDATA * )DXALLOC( sizeof( DXA_DIR_FINDDATA ) ) ;
+	if( find == NULL )
+	{
+		return ( DWORD_PTR )-1 ;
+	}
+	_MEMSET( find, 0, sizeof( *find ) ) ;
+
+	// ?wÅf????I?u?W?F?N?g???A?[?J?C?u?t?@?C??Åg???Åf??Å~??
+	if( DXA_DIR_OpenTest( FilePath, &find->UseArchiveIndex, nPath, sizeof( nPath ) ) == -1 )
+	{
+		// ?A?[?J?C?u?t?@?C??Åg????????????????Åˆ???t?@?C??????????????
+		find->UseArchiveFlag = 0 ;
+		find->FindHandle = ReadOnlyFileAccessFindFirst( FilePath, Buffer ) ;
+	}
+	else
+	{
+		// ?A?[?J?C?u?t?@?C??Åg??????Åˆ???A?[?J?C?u?t?@?C??Åg?????????????
+		find->UseArchiveFlag = 1 ;
+		find->FindHandle = DXA_FindFirst( &DXARCD.Archive[ find->UseArchiveIndex ]->Archive, nPath, Buffer ) ;
+	}
+
+	// ?????n?Åg?h??????Åg????????????????Åˆ???G?ÅÒ?[
+	if( find->FindHandle == ( DWORD_PTR )-1 )
+	{
+		// ?A?[?J?C?u?t?@?C??Åg??????Åˆ???A?[?J?C?u?t?@?C?????g?p?J?E?Åg?g????????
+		if( find->UseArchiveFlag != 0 )
+		{
+			DXA_DIR_CloseArchive( find->UseArchiveIndex ) ;
+		}
+
+		DXFREE( find );
+		return ( DWORD_PTR )-1 ;
+	}
+
+	// ?n?Åg?h????????
+	return (DWORD_PTR)find ;
+}
+
+// ????Åfl: -1=?G?ÅÒ?[  0=???ÅÄ
+extern int DXA_DIR_FindNext( DWORD_PTR FindHandle, FILEINFOW *Buffer )
+{
+	DXA_DIR_FINDDATA *find;
+
+	find = (DXA_DIR_FINDDATA *)FindHandle;
+	if( find->UseArchiveFlag == 0 )
+	{
+		return ReadOnlyFileAccessFindNext( find->FindHandle, Buffer ) ;
+	}
+	else
+	{
+		return DXA_FindNext( find->FindHandle, Buffer ) ;
+	}
+}
+
+// ????Åfl: -1=?G?ÅÒ?[  0=???ÅÄ
+extern int DXA_DIR_FindClose( DWORD_PTR FindHandle )
+{
+	DXA_DIR_FINDDATA *find;
+
+	find = (DXA_DIR_FINDDATA *)FindHandle;
+	if( find->UseArchiveFlag == 0 )
+	{
+		ReadOnlyFileAccessFindClose( find->FindHandle ) ;
+	}
+	else
+	{
+		DXA_FindClose( find->FindHandle );
+		DXA_DIR_CloseArchive( find->UseArchiveIndex ) ;
+	}
+
+	DXFREE( find );
+
+	return 0;
+}
+
+
+
+
+// ?wÅf????c?w?`?t?@?C??????????????????Åg???????( ????Åfl: -1=?G?ÅÒ?[  0=???ÅÄ )
+extern int NS_DXArchivePreLoad( const TCHAR *FilePath , int ASyncThread )
+{
+	wchar_t fullpath[ FILEPATH_MAX ] ;
+
+	// ?t???p?X??Åg???(????????ÅeS?????Å˜????Åe??Å˜????????)
+#ifdef UNICODE
+	DXA_DIR_ConvertFullPath( FilePath, fullpath, sizeof( fullpath ), DXARCD.NotArchivePathCharUp == FALSE ? 1 : 0 ) ;
+#else // UNICODE
+	wchar_t FilePathBuffer[ FILEPATH_MAX ] ;
+
+	ConvString( ( const char * )FilePath, -1, _TCHARCODEFORMAT, ( char * )FilePathBuffer, sizeof( FilePathBuffer ), WCHAR_T_CHARCODEFORMAT ) ;
+	DXA_DIR_ConvertFullPath( FilePathBuffer, fullpath, sizeof( fullpath ), DXARCD.NotArchivePathCharUp == FALSE ? 1 : 0 ) ;
+#endif // UNICODE
+
+	return DXA_DIR_OpenArchive( fullpath, NULL, -1, FALSE, FALSE, -1, TRUE, ASyncThread ) == -1 ? -1 : 0 ;
+}
+
+// ?wÅf????c?w?`?t?@?C??????????????????Åg???????( ????Åfl  -1:?G?ÅÒ?[  0:???ÅÄ )
+extern int NS_DXArchivePreLoadWithStrLen( const TCHAR *FilePath, size_t FilePathLength, int ASyncThread )
+{
+	int Result ;
+	TCHAR_STRING_WITH_STRLEN_TO_TCHAR_STRING_ONE_BEGIN( FilePath, FilePathLength, return -1 )
+	Result = NS_DXArchivePreLoad( UseFilePathBuffer , ASyncThread ) ;
+	TCHAR_STRING_WITH_STRLEN_TO_TCHAR_STRING_END( FilePath )
+	return Result ;
+}
+
+// ?wÅf????c?w?`?t?@?C??????ÅeOÅg?????????????????????????????Åg?????( ????Åfl?F TRUE=???????? FALSE=???? )
+extern int NS_DXArchiveCheckIdle( const TCHAR *FilePath )
+{
+	int handle;
+	wchar_t fullpath[FILEPATH_MAX];
+
+	// ?t???p?X??Åg???(????????ÅeS?????Å˜????Åe??Å˜????????)
+#ifdef UNICODE
+	DXA_DIR_ConvertFullPath( FilePath, fullpath, sizeof( fullpath ), DXARCD.NotArchivePathCharUp == FALSE ? 1 : 0 ) ;
+#else // UNICODE
+	wchar_t FilePathBuffer[ FILEPATH_MAX ] ;
+
+	ConvString( ( const char * )FilePath, -1, _TCHARCODEFORMAT, ( char * )FilePathBuffer, sizeof( FilePathBuffer ), WCHAR_T_CHARCODEFORMAT ) ;
+	DXA_DIR_ConvertFullPath( FilePathBuffer, fullpath, sizeof( fullpath ), DXARCD.NotArchivePathCharUp == FALSE ? 1 : 0 ) ;
+#endif // UNICODE
+
+	// ?t?@?C???p?X?????n?Åg?h??????Åg?????
+	handle = DXA_DIR_GetArchive( fullpath ) ;
+	if( handle == -1 )
+	{
+		return 0 ;
+	}
+
+	// ??Åh?????????????????????Åg???
+	return DXA_CheckIdle( &DXARCD.Archive[handle]->Archive ) ;
+}
+
+// ?wÅf????c?w?`?t?@?C??????ÅeOÅg?????????????????????????????Åg?????( ????Åfl  TRUE:???????? FALSE:???? )
+extern int NS_DXArchiveCheckIdleWithStrLen( const TCHAR *FilePath, size_t FilePathLength )
+{
+	int Result ;
+	TCHAR_STRING_WITH_STRLEN_TO_TCHAR_STRING_ONE_BEGIN( FilePath, FilePathLength, return -1 )
+	Result = NS_DXArchiveCheckIdle( UseFilePathBuffer ) ;
+	TCHAR_STRING_WITH_STRLEN_TO_TCHAR_STRING_END( FilePath )
+	return Result ;
+}
+
+// ?wÅf????c?w?`?t?@?C??????????????ÅÒ???????
+extern int NS_DXArchiveRelease( const TCHAR *FilePath )
+{
+	int handle;
+	wchar_t fullpath[ FILEPATH_MAX ] ;
+
+	// ?t???p?X??Åg???(????????ÅeS?????Å˜????Åe??Å˜????????)
+#ifdef UNICODE
+	DXA_DIR_ConvertFullPath( FilePath, fullpath, sizeof( fullpath ), DXARCD.NotArchivePathCharUp == FALSE ? 1 : 0 ) ;
+#else // UNICODE
+	wchar_t FilePathBuffer[ FILEPATH_MAX ] ;
+
+	ConvString( ( const char * )FilePath, -1, _TCHARCODEFORMAT, ( char * )FilePathBuffer, sizeof( FilePathBuffer ), WCHAR_T_CHARCODEFORMAT ) ;
+	DXA_DIR_ConvertFullPath( FilePathBuffer, fullpath, sizeof( fullpath ), DXARCD.NotArchivePathCharUp == FALSE ? 1 : 0 ) ;
+#endif // UNICODE
+
+	// ?t?@?C???p?X?????n?Åg?h??????Åg?????
+	handle = DXA_DIR_GetArchive( fullpath ) ;
+	if( handle == -1 )
+	{
+		return 0 ;
+	}
+
+	// ???Å˜??
+	DXA_DIR_CloseArchive( handle ) ;
+	DXA_DIR_CloseWaitArchive() ;
+
+	// ?I??
+	return 0 ;
+}
+
+// ?wÅf????c?w?`?t?@?C??????????????ÅÒ???????
+extern int NS_DXArchiveReleaseWithStrLen( const TCHAR *FilePath, size_t FilePathLength )
+{
+	int Result ;
+	TCHAR_STRING_WITH_STRLEN_TO_TCHAR_STRING_ONE_BEGIN( FilePath, FilePathLength, return -1 )
+	Result = NS_DXArchiveRelease( UseFilePathBuffer ) ;
+	TCHAR_STRING_WITH_STRLEN_TO_TCHAR_STRING_END( FilePath )
+	return Result ;
+}
+
+// ?c?w?`?t?@?C????ÅfÅı???wÅf????t?@?C????ÅeÅ˜????????????????Åf??Å~???ATargetFilePath ???c?w?`?t?@?C?????J???Åg?g?t?H???_?????????Åˆ???p?X( ????Åfl:  -1=?G?ÅÒ?[  0:????  1:???? )
+extern int NS_DXArchiveCheckFile( const TCHAR *FilePath, const TCHAR *TargetFilePath )
+{
+	int index, ret ;
+	DXARC_DIR_ARCHIVE *Archive ;
+	wchar_t fullpath[ FILEPATH_MAX ] ;
+
+	// ?t???p?X??Åg???(????????ÅeS?????Å˜????Åe??Å˜????????)
+#ifdef UNICODE
+	DXA_DIR_ConvertFullPath( FilePath, fullpath, sizeof( fullpath ), DXARCD.NotArchivePathCharUp == FALSE ? 1 : 0 ) ;
+#else // UNICODE
+	wchar_t FilePathBuffer[ FILEPATH_MAX ] ;
+
+	ConvString( ( const char * )FilePath, -1, _TCHARCODEFORMAT, ( char * )FilePathBuffer, sizeof( FilePathBuffer ), WCHAR_T_CHARCODEFORMAT ) ;
+	DXA_DIR_ConvertFullPath( FilePathBuffer, fullpath, sizeof( fullpath ), DXARCD.NotArchivePathCharUp == FALSE ? 1 : 0 ) ;
+#endif // UNICODE
+
+	// ?A?[?J?C?u?t?@?C????????????????Åf??Å~??
+	index = DXA_DIR_OpenArchive( fullpath ) ;
+	if( index == -1 )
+	{
+		return -1 ;
+	}
+
+	// ?A?[?J?C?u??ÅfÅı???wÅf????t?@?C??????????????????Åf??Å~??
+	Archive = DXARCD.Archive[ index ] ;
+	ret = DXA_GetFileInfo( &Archive->Archive, _TCHARCODEFORMAT, ( const char * )TargetFilePath, NULL, NULL ) ;
+
+	DXA_DIR_CloseArchive( index ) ;
+
+	// ??ÅÒ???????
+	return ret == -1 ? 0 : 1 ;
+}
+
+// ?c?w?`?t?@?C????ÅfÅı???wÅf????t?@?C????ÅeÅ˜????????????????Åf??Å~???ATargetFilePath ???c?w?`?t?@?C?????J???Åg?g?t?H???_?????????Åˆ???p?X( ????Åfl:  -1=?G?ÅÒ?[  0:????  1:???? )
+extern int NS_DXArchiveCheckFileWithStrLen( const TCHAR *FilePath, size_t FilePathLength, const TCHAR *TargetFilePath, size_t TargetFilePathLength )
+{
+	int Result = -1 ;
+	TCHAR_STRING_WITH_STRLEN_TO_TCHAR_STRING_BEGIN( FilePath )
+	TCHAR_STRING_WITH_STRLEN_TO_TCHAR_STRING_BEGIN( TargetFilePath )
+	TCHAR_STRING_WITH_STRLEN_TO_TCHAR_STRING_SETUP( FilePath,       FilePathLength,       goto ERR )
+	TCHAR_STRING_WITH_STRLEN_TO_TCHAR_STRING_SETUP( TargetFilePath, TargetFilePathLength, goto ERR )
+
+	Result = NS_DXArchiveCheckFile( UseFilePathBuffer, UseTargetFilePathBuffer ) ;
+
+ERR :
+
+	TCHAR_STRING_WITH_STRLEN_TO_TCHAR_STRING_END( FilePath )
+	TCHAR_STRING_WITH_STRLEN_TO_TCHAR_STRING_END( TargetFilePath )
+	return Result ;
+}
+
+// ??????????ÅgW?J???????c?w?`?t?@?C?????wÅf????t?@?C???p?X???????Å}????????
+extern int NS_DXArchiveSetMemImage(		void *ArchiveImage, int ArchiveImageSize, const TCHAR *EmulateFilePath, int ArchiveImageCopyFlag, int ArchiveImageReadOnly )
+{
+	wchar_t fullpath[ FILEPATH_MAX ] ;
+
+	// ?t???p?X??Åg???(????????ÅeS?????Å˜????Åe??Å˜????????)
+#ifdef UNICODE
+	DXA_DIR_ConvertFullPath( EmulateFilePath, fullpath, sizeof( fullpath ), DXARCD.NotArchivePathCharUp == FALSE ? 1 : 0 ) ;
+#else // UNICODE
+	wchar_t FilePathBuffer[ FILEPATH_MAX ] ;
+
+	ConvString( ( const char * )EmulateFilePath, -1, _TCHARCODEFORMAT, ( char * )FilePathBuffer, sizeof( FilePathBuffer ), WCHAR_T_CHARCODEFORMAT ) ;
+	DXA_DIR_ConvertFullPath( FilePathBuffer, fullpath, sizeof( fullpath ), DXARCD.NotArchivePathCharUp == FALSE ? 1 : 0 ) ;
+#endif // UNICODE
+
+	return DXA_DIR_OpenArchive( fullpath, ArchiveImage, ArchiveImageSize, ArchiveImageCopyFlag, ArchiveImageReadOnly, -1, FALSE, FALSE ) == -1 ? -1 : 0;
+}
+
+// ??????????ÅgW?J???????c?w?`?t?@?C?????wÅf????t?@?C???p?X???????Å}????????( EmulateFilePath ?????Åò???? dxa ?t?@?C?????p?X?A???????c?w?`?t?@?C???C???[?W?? Image.dxa ???????t?@?C?????? c:\Temp ???????Å}?????????????Åˆ?? EmulateFilePath ?? "c:\\Temp\\Image.dxa" ??Ågn???ASetDXArchiveExtension ???gÅf??q?????X???????????Åˆ?? EmulateFilePath ??Ågn???t?@?C???p?X???gÅf??q?????????Åˆ???????K?v???? )
+extern int NS_DXArchiveSetMemImageWithStrLen( void *ArchiveImage, int ArchiveImageSize, const TCHAR *EmulateFilePath, size_t EmulateFilePathLength, int ArchiveImageCopyFlag, int ArchiveImageReadOnly )
+{
+	int Result ;
+	TCHAR_STRING_WITH_STRLEN_TO_TCHAR_STRING_ONE_BEGIN( EmulateFilePath, EmulateFilePathLength, return -1 )
+	Result = NS_DXArchiveSetMemImage( ArchiveImage, ArchiveImageSize, UseEmulateFilePathBuffer, ArchiveImageCopyFlag, ArchiveImageReadOnly ) ;
+	TCHAR_STRING_WITH_STRLEN_TO_TCHAR_STRING_END( EmulateFilePath )
+	return Result ;
+}
+
+// DXArchiveSetMemImage ????Åf???ÅÒ???????
+extern int NS_DXArchiveReleaseMemImage(	void *ArchiveImage )
+{
+	int handle;
+
+	// ?t?@?C???p?X?????n?Åg?h??????Åg?????
+	handle = DXA_DIR_GetArchive( NULL, ArchiveImage ) ;
+	if( handle == -1 )
+	{
+		return 0 ;
+	}
+
+	// ???Å˜??
+	DXA_DIR_CloseArchive( handle ) ;
+	DXA_DIR_CloseWaitArchive() ;
+
+	// ?I??
+	return 0 ;
+}
+
+#endif
+
+
+// ?f?[?^??ÅÒ?Åg?????( ????Åfl:ÅÒ?Åg??????f?[?^?T?C?Y )
+#define MIN_COMPRESS		(4)						// ??Åf????k?o?C?g?Åh
+#define MAX_SEARCHLISTNUM	(64)					// ??Åe???ÅfvÅf???ÅfT???Å~?????X?g??ÅfH????Åe??Åh
+#define MAX_SUBLISTNUM		(65536)					// ???k????ÅfZ?k?????????T?u???X?g????Åe??Åh
+#define MAX_COPYSIZE 		(0x1fff + MIN_COMPRESS)	// ?Q???A?h???X?????R?s?[?o??????Åe??T?C?Y( ???k?R?[?h???\?????????R?s?[?T?C?Y????Åe?Åfl + ??Åf????k?o?C?g?Åh )
+#define MAX_ADDRESSLISTNUM	(1024 * 1024 * 1)		// ?X?ÅÒ?C?h???Åe????Åe??T?C?Y
+#define MAX_POSITION		(1 << 24)				// ?Q??ÅÒ?Åh\????Åe?Åe?Åe??A?h???X( 16MB )
+
+// ???k????ÅfZ?k?p???X?g
+typedef struct LZ_LIST
+{
+	LZ_LIST *next, *prev ;
+	DWORD address ;
+} LZ_LIST ;
+
+// ?f?[?^?????k????( ????Åfl:???k?????f?[?^?T?C?Y )
+extern	int	DXA_Encode( void *Src, DWORD SrcSize, void *Dest )
+{
+	int dstsize ;
+	int    bonus,    conbo,    conbosize,    address,    addresssize ;
+	int maxbonus, maxconbo, maxconbosize, maxaddress, maxaddresssize ;
+	BYTE keycode, *srcp, *destp, *dp, *sp, *sp2, *sp1 ;
+	DWORD srcaddress, code ;
+	int j ;
+	DWORD i, m ;
+	DWORD maxlistnum, maxlistnummask, listaddp ;
+	DWORD sublistnum, sublistmaxnum ;
+	LZ_LIST *listbuf, *listtemp, *list, *newlist ;
+	BYTE *listfirsttable, *usesublistflagtable, *sublistbuf ;
+	
+	// ?T?u???X?g???T?C?Y????????
+	{
+			 if( SrcSize < 100 * 1024 )			sublistmaxnum = 1 ;
+		else if( SrcSize < 3 * 1024 * 1024 )	sublistmaxnum = MAX_SUBLISTNUM / 3 ;
+		else									sublistmaxnum = MAX_SUBLISTNUM ;
+	}
+
+	// ???X?g???T?C?Y????????
+	{
+		maxlistnum = MAX_ADDRESSLISTNUM ;
+		if( maxlistnum > SrcSize )
+		{
+			while( ( maxlistnum >> 1 ) > 0x100 && ( maxlistnum >> 1 ) > SrcSize )
+				maxlistnum >>= 1 ;
+		}
+		maxlistnummask = maxlistnum - 1 ;
+	}
+
+	// ?????????m??
+	usesublistflagtable   = (BYTE *)DXALLOC(
+		sizeof( DWORD_PTR )	* 65536 +					// ???C?Åg???X?g????Åg??I?u?W?F?N?g?p????
+		sizeof( LZ_LIST   )	* maxlistnum +				// ???C?Åg???X?g?p????
+		sizeof( BYTE      )	* 65536 +					// ?T?u???X?g???g?p???????????t?ÅÒ?O?p????
+		sizeof( DWORD_PTR )	* 256 * sublistmaxnum ) ;	// ?T?u???X?g?p????
+		
+	// ?A?h???X???Z?b?g
+	listfirsttable =     usesublistflagtable + sizeof( BYTE      ) * 65536 ;
+	sublistbuf     =          listfirsttable + sizeof( DWORD_PTR ) * 65536 ;
+	listbuf        = (LZ_LIST *)( sublistbuf + sizeof( DWORD_PTR ) * 256 * sublistmaxnum ) ;
+	
+	// ?ÅÒ??ÅÒ?
+	_MEMSET( usesublistflagtable, 0, sizeof( BYTE      ) * 65536               ) ;
+	_MEMSET(          sublistbuf, 0, sizeof( DWORD_PTR ) * 256 * sublistmaxnum ) ;
+	_MEMSET(      listfirsttable, 0, sizeof( DWORD_PTR ) * 65536               ) ;
+	list = listbuf ;
+	for( i = maxlistnum / 8 ; i ; i --, list += 8 )
+	{
+		list[0].address =
+		list[1].address =
+		list[2].address =
+		list[3].address =
+		list[4].address =
+		list[5].address =
+		list[6].address =
+		list[7].address = 0xffffffff ;
+	}
+
+	srcp  = (BYTE *)Src ;
+	destp = (BYTE *)Dest ;
+
+	// ???k???f?[?^??ÅfÅı????Åh??o???pÅgx??Åf????o?C?g?R?[?h??????????
+	{
+		DWORD qnum, table[256], mincode ;
+
+		for( i = 0 ; i < 256 ; i ++ )
+			table[i] = 0 ;
+		
+		sp   = srcp ;
+		qnum = SrcSize / 8 ;
+		i    = qnum * 8 ;
+		for( ; qnum ; qnum --, sp += 8 )
+		{
+			table[sp[0]] ++ ;
+			table[sp[1]] ++ ;
+			table[sp[2]] ++ ;
+			table[sp[3]] ++ ;
+			table[sp[4]] ++ ;
+			table[sp[5]] ++ ;
+			table[sp[6]] ++ ;
+			table[sp[7]] ++ ;
+		}
+		for( ; i < SrcSize ; i ++, sp ++ )
+			table[*sp] ++ ;
+			
+		keycode = 0 ;
+		mincode = table[0] ;
+		for( i = 1 ; i < 256 ; i ++ )
+		{
+			if( mincode < table[i] ) continue ;
+			mincode = table[i] ;
+			keycode = (BYTE)i ;
+		}
+	}
+
+	// ???k?????T?C?Y???Z?b?g
+	((DWORD *)destp)[0] = SrcSize ;
+
+	// ?L?[?R?[?h???Z?b?g
+	destp[8] = keycode ;
+
+	// ???k????
+	dp               = destp + 9 ;
+	sp               = srcp ;
+	srcaddress       = 0 ;
+	dstsize          = 0 ;
+	listaddp         = 0 ;
+	sublistnum       = 0 ;
+	while( srcaddress < SrcSize )
+	{
+		// ?c???T?C?Y????Åf????k?T?C?Y??ÅÒ??????Åˆ?????k????????????
+		if( srcaddress + MIN_COMPRESS >= SrcSize ) goto NOENCODE ;
+
+		// ???X?g????Åg?
+		code = *((WORD *)sp) ;
+		list = (LZ_LIST *)( listfirsttable + code * sizeof( DWORD_PTR ) ) ;
+		if( usesublistflagtable[code] == 1 )
+		{
+			list = (LZ_LIST *)( (DWORD_PTR *)list->next + sp[2] ) ;
+		}
+		else
+		{
+			if( sublistnum < sublistmaxnum )
+			{
+				list->next = (LZ_LIST *)( sublistbuf + sizeof( DWORD_PTR ) * 256 * sublistnum ) ;
+				list       = (LZ_LIST *)( (DWORD_PTR *)list->next + sp[2] ) ;
+			
+				usesublistflagtable[code] = 1 ;
+				sublistnum ++ ;
+			}
+		}
+
+		// ??Åh???ÅfvÅf???Åf????R?[?h??ÅfT??
+		maxconbo   = -1 ;
+		maxaddress = -1 ;
+		maxbonus   = -1 ;
+		for( m = 0, listtemp = list->next ; /*m < MAX_SEARCHLISTNUM &&*/ listtemp != NULL ; listtemp = listtemp->next, m ++ )
+		{
+			address = ( int )( srcaddress - listtemp->address ) ;
+			if( address >= MAX_POSITION )
+			{
+				if( listtemp->prev ) listtemp->prev->next = listtemp->next ;
+				if( listtemp->next ) listtemp->next->prev = listtemp->prev ;
+				listtemp->address = 0xffffffff ;
+				continue ;
+			}
+			
+			sp2 = &sp[-address] ;
+			sp1 = sp ;
+			if( srcaddress + MAX_COPYSIZE < SrcSize )
+			{
+				conbo = MAX_COPYSIZE / 4 ;
+				while( conbo && *((DWORD *)sp2) == *((DWORD *)sp1) )
+				{
+					sp2 += 4 ;
+					sp1 += 4 ;
+					conbo -- ;
+				}
+				conbo = MAX_COPYSIZE - ( MAX_COPYSIZE / 4 - conbo ) * 4 ;
+
+				while( conbo && *sp2 == *sp1 )
+				{
+					sp2 ++ ;
+					sp1 ++ ;
+					conbo -- ;
+				}
+				conbo = MAX_COPYSIZE - conbo ;
+			}
+			else
+			{
+				for( conbo = 0 ;
+						conbo < MAX_COPYSIZE &&
+						conbo + srcaddress < SrcSize &&
+						sp[conbo - address] == sp[conbo] ;
+							conbo ++ ){}
+			}
+
+			if( conbo >= 4 )
+			{
+				conbosize   = ( conbo - MIN_COMPRESS ) < 0x20 ? 0 : 1 ;
+				addresssize = address < 0x100 ? 0 : ( address < 0x10000 ? 1 : 2 ) ;
+				bonus       = conbo - ( 3 + conbosize + addresssize ) ;
+
+				if( bonus > maxbonus )
+				{
+					maxconbo       = conbo ;
+					maxaddress     = address ;
+					maxaddresssize = addresssize ;
+					maxconbosize   = conbosize ;
+					maxbonus       = bonus ;
+				}
+			}
+		}
+
+		// ???X?g??Ågo?^
+		newlist = &listbuf[listaddp] ;
+		if( newlist->address != 0xffffffff )
+		{
+			if( newlist->prev ) newlist->prev->next = newlist->next ;
+			if( newlist->next ) newlist->next->prev = newlist->prev ;
+			newlist->address = 0xffffffff ;
+		}
+		newlist->address = srcaddress ;
+		newlist->prev    = list ;
+		newlist->next    = list->next ;
+		if( list->next != NULL ) list->next->prev = newlist ;
+		list->next       = newlist ;
+		listaddp         = ( listaddp + 1 ) & maxlistnummask ;
+
+		// ??Åfv?R?[?h????????????????????Åh????k?R?[?h???????o??
+		if( maxconbo == -1 )
+		{
+NOENCODE:
+			// ?L?[?R?[?h?????????Åˆ???QÅÒ??AÅeÅ}???o??????
+			if( *sp == keycode )
+			{
+				if( destp != NULL )
+				{
+					dp[0]  =
+					dp[1]  = keycode ;
+					dp += 2 ;
+				}
+				dstsize += 2 ;
+			}
+			else
+			{
+				if( destp != NULL )
+				{
+					*dp = *sp ;
+					dp ++ ;
+				}
+				dstsize ++ ;
+			}
+			sp ++ ;
+			srcaddress ++ ;
+		}
+		else
+		{
+			// ?????????????Åˆ????????????Åfu??Åf??????o??????
+			
+			// ?L?[?R?[?h????????????Åfu??Åf??????o??
+			if( destp != NULL )
+			{
+				// ?L?[?R?[?h???o??
+				*dp++ = keycode ;
+
+				// ?o???????AÅeÅ}Åf?????Åf? MIN_COMPRESS ?????Å}????ÅeOÅf??????? - MIN_COMPRESS ???????????o??????
+				maxconbo -= MIN_COMPRESS ;
+
+				// ?AÅeÅ}Åf??O?`?S?r?b?g???AÅeÅ}Åf??AÅe?Åe??A?h???X???r?b?gÅf????o??
+				*dp = (BYTE)( ( ( maxconbo & 0x1f ) << 3 ) | ( maxconbosize << 2 ) | maxaddresssize ) ;
+
+				// ?L?[?R?[?h???AÅeÅ}???L?[?R?[?h??Åfl??Åg?????Åh????k?R?[?h??
+				// Åh?Åff?????????A?L?[?R?[?h??Åfl?????????Åˆ??Åfl???{?P????
+				if( *dp >= keycode ) dp[0] += 1 ;
+				dp ++ ;
+
+				// ?AÅeÅ}Åf??T?`?P?Q?r?b?g???o??
+				if( maxconbosize == 1 )
+					*dp++ = (BYTE)( ( maxconbo >> 5 ) & 0xff ) ;
+
+				// maxconbo ???????g?????? - MIN_COMPRESS ????????????
+				maxconbo += MIN_COMPRESS ;
+
+				// ?o??????Åe?Åe??A?h???X???O??( ???????A?h???X?|?P )??Åe}???????A?|?P???????????o??????
+				maxaddress -- ;
+
+				// Åe?Åe??A?h???X???o??
+				*dp++ = (BYTE)( maxaddress ) ;
+				if( maxaddresssize > 0 )
+				{
+					*dp++ = (BYTE)( maxaddress >> 8 ) ;
+					if( maxaddresssize == 2 )
+						*dp++ = (BYTE)( maxaddress >> 16 ) ;
+				}
+			}
+			
+			// ?o???T?C?Y??ÅÒ??Z
+			dstsize += 3 + maxaddresssize + maxconbosize ;
+			
+			// ???X?g????????Åf?ÅÒ?
+			if( srcaddress + maxconbo < SrcSize )
+			{
+				sp2 = &sp[1] ;
+				for( j = 1 ; j < maxconbo && (DWORD_PTR)&sp2[2] - (DWORD_PTR)srcp < SrcSize ; j ++, sp2 ++ )
+				{
+					code = *((WORD *)sp2) ;
+					list = (LZ_LIST *)( listfirsttable + code * sizeof( DWORD_PTR ) ) ;
+					if( usesublistflagtable[code] == 1 )
+					{
+						list = (LZ_LIST *)( (DWORD_PTR *)list->next + sp2[2] ) ;
+					}
+					else
+					{
+						if( sublistnum < sublistmaxnum )
+						{
+							list->next = (LZ_LIST *)( sublistbuf + sizeof( DWORD_PTR ) * 256 * sublistnum ) ;
+							list       = (LZ_LIST *)( (DWORD_PTR *)list->next + sp2[2] ) ;
+						
+							usesublistflagtable[code] = 1 ;
+							sublistnum ++ ;
+						}
+					}
+
+					newlist = &listbuf[listaddp] ;
+					if( newlist->address != 0xffffffff )
+					{
+						if( newlist->prev ) newlist->prev->next = newlist->next ;
+						if( newlist->next ) newlist->next->prev = newlist->prev ;
+						newlist->address = 0xffffffff ;
+					}
+					newlist->address = srcaddress + j ;
+					newlist->prev = list ;
+					newlist->next = list->next ;
+					if( list->next != NULL ) list->next->prev = newlist ;
+					list->next = newlist ;
+					listaddp = ( listaddp + 1 ) & maxlistnummask ;
+				}
+			}
+			
+			sp         += maxconbo ;
+			srcaddress += maxconbo ;
+		}
+	}
+
+	// ???k?????f?[?^?T?C?Y????ÅeÅ˜????
+	*((DWORD *)&destp[4]) = ( DWORD )( dstsize + 9 ) ;
+
+	// ?m??????????????ÅÒ???
+	DXFREE( usesublistflagtable ) ;
+
+	// ?f?[?^???T?C?Y??????
+	return dstsize + 9 ;
+}
+
+extern int DXA_Decode( void *Src, void *Dest )
+{
+	DWORD srcsize, destsize, code, indexsize, keycode, conbo, index = 0 ;
+	BYTE *srcp, *destp, *dp, *sp ;
+
+	destp = (BYTE *)Dest ;
+	srcp  = (BYTE *)Src ;
+	
+	// ÅÒ?Åg??????f?[?^?T?C?Y??Åg???
+	destsize = *((DWORD *)&srcp[0]) ;
+
+	// ???k?f?[?^???T?C?Y??Åg???
+	srcsize = *((DWORD *)&srcp[4]) - 9 ;
+
+	// ?L?[?R?[?h
+	keycode = srcp[8] ;
+	
+	// ?o?????????????Åˆ???T?C?Y????????
+	if( Dest == NULL )
+	{
+		return ( int )destsize ;
+	}
+	
+	// ÅgW?J?J?n
+	sp  = srcp + 9 ;
+	dp  = destp ;
+	while( srcsize )
+	{
+		// ?L?[?R?[?h??Åg???????????????
+		if( sp[0] != keycode )
+		{
+			// Åh????k?R?[?h?????Åˆ???????????o??
+			*dp = *sp ;
+			dp      ++ ;
+			sp      ++ ;
+			srcsize -- ;
+			continue ;
+		}
+	
+		// ?L?[?R?[?h???AÅeÅ}???????????Åˆ???L?[?R?[?h??Åe????o??
+		if( sp[1] == keycode )
+		{
+			*dp = (BYTE)keycode ;
+			dp      ++ ;
+			sp      += 2 ;
+			srcsize -= 2 ;
+			
+			continue ;
+		}
+
+		// Åe????o?C?g??Åg???
+		code = sp[1] ;
+
+		// ?????L?[?R?[?h??????Åe?????Åfl?????????Åˆ???L?[?R?[?h
+		// ?????o?b?e?B?Åg?O?h?~???Å~???{?P?????????????|?P????
+		if( code > keycode ) code -- ;
+
+		sp      += 2 ;
+		srcsize -= 2 ;
+
+		// ?AÅeÅ}Åf?????Åg?????
+		conbo = code >> 3 ;
+		if( code & ( 0x1 << 2 ) )
+		{
+			conbo |= *sp << 5 ;
+			sp      ++ ;
+			srcsize -- ;
+		}
+		conbo += MIN_COMPRESS ;	// ??ÅeÅ˜???????Z???????????k?o?C?g?Åh??Åe???
+
+		// ?Q??Åe?Åe??A?h???X????Åg?????
+		indexsize = code & 0x3 ;
+		switch( indexsize )
+		{
+		case 0 :
+			index = *sp ;
+			sp      ++ ;
+			srcsize -- ;
+			break ;
+			
+		case 1 :
+			index = *((WORD *)sp) ;
+			sp      += 2 ;
+			srcsize -= 2 ;
+			break ;
+			
+		case 2 :
+			index = ( DWORD )( *((WORD *)sp) | ( sp[2] << 16 ) ) ;
+			sp      += 3 ;
+			srcsize -= 3 ;
+			break ;
+		}
+		index ++ ;		// ??ÅeÅ˜?????|?P?????????????{?P????
+
+		// ÅgW?J
+		if( index < conbo )
+		{
+			DWORD num ;
+
+			num  = index ;
+			while( conbo > num )
+			{
+				_MEMCPY( dp, dp - num, num ) ;
+				dp    += num ;
+				conbo -= num ;
+				num   += num ;
+			}
+			if( conbo != 0 )
+			{
+				_MEMCPY( dp, dp - num, conbo ) ;
+				dp += conbo ;
+			}
+		}
+		else
+		{
+			_MEMCPY( dp, dp - index, conbo ) ;
+			dp += conbo ;
+		}
+	}
+
+	// ÅÒ?Åg??????T?C?Y??????
+	return (int)destsize ;
+}
+
+// ?o?C?i???f?[?^??Åh??p?Å˜??????????????( ????Åfl:?????????f?[?^?T?C?Y )
+static unsigned char BinToChar128Table[ 128 ] =
+{
+	0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x3A, 0x3B, 0x3C, 0x3D, 0x3E, 0x3F, 0x40,
+	0x41, 0x42, 0x43, 0x44, 0x45, 0x46, 0x47, 0x48, 0x49, 0x4A, 0x4B, 0x4C, 0x4D, 0x4E, 0x4F, 0x50,
+	0x51, 0x52, 0x53, 0x54, 0x55, 0x56, 0x57, 0x58, 0x59, 0x5A, 0x5B, 0x5C, 0x5D, 0x5E, 0x5F, 0x60,
+	0x61, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69, 0x6A, 0x6B, 0x6C, 0x6D, 0x6E, 0x6F, 0x70,
+	0x71, 0x72, 0x73, 0x74, 0x75, 0x76, 0x77, 0x78, 0x79, 0x7A, 0x7B, 0x7C, 0x7D, 0x7E, 0xA1, 0xA2,
+	0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28, 0x29, 0x2A, 0x2B, 0x2C, 0x2D, 0x2E, 0x2F, 0x30,
+	0xA3, 0xA4, 0xA5, 0xA6, 0xA7, 0xA8, 0xA9, 0xAA, 0xAB, 0xAC, 0xAD, 0xAE, 0xAF, 0xB0, 0xB1, 0xB2,
+	0xB3, 0xB4, 0xB5, 0xB6, 0xB7, 0xB8, 0xB9, 0xBA, 0xBB, 0xBC, 0xBD, 0xBE, 0xBF, 0xC0, 0xC1, 0xC2,
+} ;
+static unsigned char Char128ToBinTable[ 256 ] =
+{
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x50, 0x51, 0x52, 0x53, 0x54, 0x55, 0x56, 0x57, 0x58, 0x59, 0x5a, 0x5b, 0x5c, 0x5d, 0x5e,
+	0x5f, 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e,
+	0x0f, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e,
+	0x1f, 0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x2d, 0x2e,
+	0x2f, 0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x3a, 0x3b, 0x3c, 0x3d, 0x3e,
+	0x3f, 0x40, 0x41, 0x42, 0x43, 0x44, 0x45, 0x46, 0x47, 0x48, 0x49, 0x4a, 0x4b, 0x4c, 0x4d, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x4e, 0x4f, 0x60, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69, 0x6a, 0x6b, 0x6c,
+	0x6d, 0x6e, 0x6f, 0x70, 0x71, 0x72, 0x73, 0x74, 0x75, 0x76, 0x77, 0x78, 0x79, 0x7a, 0x7b, 0x7c,
+	0x7d, 0x7e, 0x7f, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+} ;
+extern DWORD BinToChar128( void *Src, DWORD SrcSize, void *Dest )
+{
+	unsigned int DestSize ;
+
+	DestSize  = SrcSize + ( SrcSize + 6 ) / 7 + 5 ;
+
+	if( Dest != NULL )
+	{
+		unsigned int PackNum ;
+		unsigned int ModNum ;
+		unsigned char *DestP ;
+		unsigned char *SrcP ;
+		unsigned int i ;
+
+		DestP = ( unsigned char * )Dest ;
+		SrcP  = ( unsigned char * )&SrcSize ;
+
+		DestP[ 0 ] = BinToChar128Table[                                 ( SrcP[ 0 ] >> 1 ) ] ;
+		DestP[ 1 ] = BinToChar128Table[ ( ( SrcP[ 0 ] & 0x01 ) << 6 ) | ( SrcP[ 1 ] >> 2 ) ] ;
+		DestP[ 2 ] = BinToChar128Table[ ( ( SrcP[ 1 ] & 0x03 ) << 5 ) | ( SrcP[ 2 ] >> 3 ) ] ;
+		DestP[ 3 ] = BinToChar128Table[ ( ( SrcP[ 2 ] & 0x07 ) << 4 ) | ( SrcP[ 3 ] >> 4 ) ] ;
+		DestP[ 4 ] = BinToChar128Table[ ( ( SrcP[ 3 ] & 0x0f ) << 3 )                      ] ;
+
+		DestP += 5 ;
+
+		PackNum = SrcSize / 7 ;
+		ModNum  = SrcSize - PackNum * 7 ;
+		SrcP  = ( unsigned char * )Src ;
+		for( i = 0 ; i < PackNum ; i ++ )
+		{
+			DestP[ 0 ] = BinToChar128Table[                                 ( SrcP[ 0 ] >> 1 ) ] ;
+			DestP[ 1 ] = BinToChar128Table[ ( ( SrcP[ 0 ] & 0x01 ) << 6 ) | ( SrcP[ 1 ] >> 2 ) ] ;
+			DestP[ 2 ] = BinToChar128Table[ ( ( SrcP[ 1 ] & 0x03 ) << 5 ) | ( SrcP[ 2 ] >> 3 ) ] ;
+			DestP[ 3 ] = BinToChar128Table[ ( ( SrcP[ 2 ] & 0x07 ) << 4 ) | ( SrcP[ 3 ] >> 4 ) ] ;
+			DestP[ 4 ] = BinToChar128Table[ ( ( SrcP[ 3 ] & 0x0f ) << 3 ) | ( SrcP[ 4 ] >> 5 ) ] ;
+			DestP[ 5 ] = BinToChar128Table[ ( ( SrcP[ 4 ] & 0x1f ) << 2 ) | ( SrcP[ 5 ] >> 6 ) ] ;
+			DestP[ 6 ] = BinToChar128Table[ ( ( SrcP[ 5 ] & 0x3f ) << 1 ) | ( SrcP[ 6 ] >> 7 ) ] ;
+			DestP[ 7 ] = BinToChar128Table[ ( ( SrcP[ 6 ] & 0x7f )      )                      ] ;
+
+			DestP += 8 ;
+			SrcP  += 7 ;
+		}
+
+		if( ModNum != 0 )
+		{
+			DestP[ 0 ] = BinToChar128Table[                                 ( SrcP[ 0 ] >> 1 ) ] ;
+			if( ModNum == 1 )
+			{
+				DestP[ 1 ] = BinToChar128Table[ ( ( SrcP[ 0 ] & 0x01 ) << 6 ) ] ;
+			}
+			else
+			{
+				DestP[ 1 ] = BinToChar128Table[ ( ( SrcP[ 0 ] & 0x01 ) << 6 ) | ( SrcP[ 1 ] >> 2 ) ] ;
+				if( ModNum == 2 )
+				{
+					DestP[ 2 ] = BinToChar128Table[ ( ( SrcP[ 1 ] & 0x03 ) << 5 ) ] ;
+				}
+				else
+				{
+					DestP[ 2 ] = BinToChar128Table[ ( ( SrcP[ 1 ] & 0x03 ) << 5 ) | ( SrcP[ 2 ] >> 3 ) ] ;
+					if( ModNum == 3 )
+					{
+						DestP[ 3 ] = BinToChar128Table[ ( ( SrcP[ 2 ] & 0x07 ) << 4 ) ] ;
+					}
+					else
+					{
+						DestP[ 3 ] = BinToChar128Table[ ( ( SrcP[ 2 ] & 0x07 ) << 4 ) | ( SrcP[ 3 ] >> 4 ) ] ;
+						if( ModNum == 4 )
+						{
+							DestP[ 4 ] = BinToChar128Table[ ( ( SrcP[ 3 ] & 0x0f ) << 3 ) ] ;
+						}
+						else
+						{
+							DestP[ 4 ] = BinToChar128Table[ ( ( SrcP[ 3 ] & 0x0f ) << 3 ) | ( SrcP[ 4 ] >> 5 ) ] ;
+							if( ModNum == 5 )
+							{
+								DestP[ 5 ] = BinToChar128Table[ ( ( SrcP[ 4 ] & 0x1f ) << 2 ) ] ;
+							}
+							else
+							{
+								DestP[ 5 ] = BinToChar128Table[ ( ( SrcP[ 4 ] & 0x1f ) << 2 ) | ( SrcP[ 5 ] >> 6 ) ] ;
+								if( ModNum == 6 )
+								{
+									DestP[ 6 ] = BinToChar128Table[ ( ( SrcP[ 5 ] & 0x3f ) << 1 ) ] ;
+								}
+								else
+								{
+									DestP[ 6 ] = BinToChar128Table[ ( ( SrcP[ 5 ] & 0x3f ) << 1 ) | ( SrcP[ 6 ] >> 7 ) ] ;
+									DestP[ 7 ] = BinToChar128Table[ ( ( SrcP[ 6 ] & 0x7f )      )                      ] ;
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return DestSize ;
+}
+
+// Åh??p?Å˜???????o?C?i???f?[?^??????????( ????Åfl:?????????f?[?^?T?C?Y )
+extern DWORD Char128ToBin( void *Src, void *Dest )
+{
+	unsigned int DestSize ;
+	unsigned char *SrcP ;
+	unsigned char *DestP ;
+
+	SrcP    = ( unsigned char * )Src ;
+	DestP   = ( unsigned char * )&DestSize ;
+
+	DestP[ 0 ] = ( unsigned char )( ( Char128ToBinTable[ SrcP[ 0 ] ] << 1 ) | ( Char128ToBinTable[ SrcP[ 1 ] ] >> 6 ) ) ;
+	DestP[ 1 ] = ( unsigned char )( ( Char128ToBinTable[ SrcP[ 1 ] ] << 2 ) | ( Char128ToBinTable[ SrcP[ 2 ] ] >> 5 ) ) ;
+	DestP[ 2 ] = ( unsigned char )( ( Char128ToBinTable[ SrcP[ 2 ] ] << 3 ) | ( Char128ToBinTable[ SrcP[ 3 ] ] >> 4 ) ) ;
+	DestP[ 3 ] = ( unsigned char )( ( Char128ToBinTable[ SrcP[ 3 ] ] << 4 ) | ( Char128ToBinTable[ SrcP[ 4 ] ] >> 3 ) ) ;
+
+	SrcP += 5 ;
+
+	if( Dest != NULL )
+	{
+		unsigned int PackNum ;
+		unsigned int ModNum ;
+		unsigned int i ;
+
+		PackNum = DestSize / 7 ;
+		ModNum  = DestSize - PackNum * 7 ;
+		DestP = ( unsigned char * )Dest ;
+		for( i = 0 ; i < PackNum ; i ++ )
+		{
+			DestP[ 0 ] = ( unsigned char )( ( Char128ToBinTable[ SrcP[ 0 ] ] << 1 ) | ( Char128ToBinTable[ SrcP[ 1 ] ] >> 6 ) ) ;
+			DestP[ 1 ] = ( unsigned char )( ( Char128ToBinTable[ SrcP[ 1 ] ] << 2 ) | ( Char128ToBinTable[ SrcP[ 2 ] ] >> 5 ) ) ;
+			DestP[ 2 ] = ( unsigned char )( ( Char128ToBinTable[ SrcP[ 2 ] ] << 3 ) | ( Char128ToBinTable[ SrcP[ 3 ] ] >> 4 ) ) ;
+			DestP[ 3 ] = ( unsigned char )( ( Char128ToBinTable[ SrcP[ 3 ] ] << 4 ) | ( Char128ToBinTable[ SrcP[ 4 ] ] >> 3 ) ) ;
+			DestP[ 4 ] = ( unsigned char )( ( Char128ToBinTable[ SrcP[ 4 ] ] << 5 ) | ( Char128ToBinTable[ SrcP[ 5 ] ] >> 2 ) ) ;
+			DestP[ 5 ] = ( unsigned char )( ( Char128ToBinTable[ SrcP[ 5 ] ] << 6 ) | ( Char128ToBinTable[ SrcP[ 6 ] ] >> 1 ) ) ;
+			DestP[ 6 ] = ( unsigned char )( ( Char128ToBinTable[ SrcP[ 6 ] ] << 7 ) | ( Char128ToBinTable[ SrcP[ 7 ] ]      ) ) ;
+
+			DestP += 7 ;
+			SrcP  += 8 ;
+		}
+
+		if( ModNum != 0 )
+		{
+			DestP[ 0 ] = ( unsigned char )( ( Char128ToBinTable[ SrcP[ 0 ] ] << 1 ) | ( Char128ToBinTable[ SrcP[ 1 ] ] >> 6 ) ) ;
+			if( ModNum > 1 )
+			{
+				DestP[ 1 ] = ( unsigned char )( ( Char128ToBinTable[ SrcP[ 1 ] ] << 2 ) | ( Char128ToBinTable[ SrcP[ 2 ] ] >> 5 ) ) ;
+				if( ModNum > 2 )
+				{
+					DestP[ 2 ] = ( unsigned char )( ( Char128ToBinTable[ SrcP[ 2 ] ] << 3 ) | ( Char128ToBinTable[ SrcP[ 3 ] ] >> 4 ) ) ;
+					if( ModNum > 3 )
+					{
+						DestP[ 3 ] = ( unsigned char )( ( Char128ToBinTable[ SrcP[ 3 ] ] << 4 ) | ( Char128ToBinTable[ SrcP[ 4 ] ] >> 3 ) ) ;
+						if( ModNum > 4 )
+						{
+							DestP[ 4 ] = ( unsigned char )( ( Char128ToBinTable[ SrcP[ 4 ] ] << 5 ) | ( Char128ToBinTable[ SrcP[ 5 ] ] >> 2 ) ) ;
+							if( ModNum > 5 )
+							{
+								DestP[ 5 ] = ( unsigned char )( ( Char128ToBinTable[ SrcP[ 5 ] ] << 6 ) | ( Char128ToBinTable[ SrcP[ 6 ] ] >> 1 ) ) ;
+								if( ModNum > 6 )
+								{
+									DestP[ 6 ] = ( unsigned char )( ( Char128ToBinTable[ SrcP[ 6 ] ] << 7 ) | ( Char128ToBinTable[ SrcP[ 7 ] ]      ) ) ;
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return DestSize ;
+}
+
+// ?o?C?i???f?[?^?????? SHA-256 ???n?b?V?ÅcÅfl???v?Z????( DestBuffer ???????A?h???X????Åg??? 32byte ?n?b?V?ÅcÅfl???Åe???????????? )
+#define RROT( a, n )		( DWORD )( ( ( a ) >> ( n ) ) | ( DWORD )( ( a ) << ( 32 - ( n ) ) ) )
+#define S0( x )				( RROT( ( x ),  2 ) ^ RROT( ( x ), 13 ) ^ RROT( ( x ),22 ) )
+#define S1( x )				( RROT( ( x ),  6 ) ^ RROT( ( x ), 11 ) ^ RROT( ( x ),25 ) )
+#define s0( x )				( RROT( ( x ),  7 ) ^ RROT( ( x ), 18 ) ^ ( ( x ) >>  3 ) )
+#define s1( x )				( RROT( ( x ), 17 ) ^ RROT( ( x ), 19 ) ^ ( ( x ) >> 10 ) )
+#define CH( x, y, z )		( ( ( x ) & ( y ) ) ^ ( ( ~( x ) ) & ( z ) ) )
+#define MAJ( x, y, z )		( ( ( x ) & ( y ) ) ^ ( ( x ) & ( z ) ) ^ ( ( y ) & ( z ) ) )
+
+#define LIT_TO_BIG( sp, b )	( ( sp[ 0 + b ] << 24 ) | ( sp[ 1 + b ] << 16 ) | ( sp[ 2 + b ] << 8 ) | sp[ 3 + b ] )
+#define W_CALC( i )			( W[ i - 16 ] + s0( W[ i - 15 ] ) + W[ i - 7 ] + s1( W[ i - 2 ] ) )
+
+static DWORD K[ 64 ] =
+{
+	0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
+	0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
+	0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
+	0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967,
+	0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85,
+	0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
+	0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
+	0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2,
+} ;
+
+__inline void HashSha256_Calc( const BYTE *Src, DWORD *H )
+{
+	DWORD i ;
+	DWORD X[ 8 ] ;
+	DWORD W[ 64 ] ;
+
+	W[  0 ] = LIT_TO_BIG( Src, 4 *  0 ) ;		W[  1 ] = LIT_TO_BIG( Src, 4 *  1 ) ;
+	W[  2 ] = LIT_TO_BIG( Src, 4 *  2 ) ;		W[  3 ] = LIT_TO_BIG( Src, 4 *  3 ) ;
+	W[  4 ] = LIT_TO_BIG( Src, 4 *  4 ) ;		W[  5 ] = LIT_TO_BIG( Src, 4 *  5 ) ;
+	W[  6 ] = LIT_TO_BIG( Src, 4 *  6 ) ;		W[  7 ] = LIT_TO_BIG( Src, 4 *  7 ) ;
+	W[  8 ] = LIT_TO_BIG( Src, 4 *  8 ) ;		W[  9 ] = LIT_TO_BIG( Src, 4 *  9 ) ;
+	W[ 10 ] = LIT_TO_BIG( Src, 4 * 10 ) ;		W[ 11 ] = LIT_TO_BIG( Src, 4 * 11 ) ;
+	W[ 12 ] = LIT_TO_BIG( Src, 4 * 12 ) ;		W[ 13 ] = LIT_TO_BIG( Src, 4 * 13 ) ;
+	W[ 14 ] = LIT_TO_BIG( Src, 4 * 14 ) ;		W[ 15 ] = LIT_TO_BIG( Src, 4 * 15 ) ;
+
+	W[ 16 ] = W_CALC( 16 ) ;	W[ 17 ] = W_CALC( 17 ) ;	W[ 18 ] = W_CALC( 18 ) ;	W[ 19 ] = W_CALC( 19 ) ;
+	W[ 20 ] = W_CALC( 20 ) ;	W[ 21 ] = W_CALC( 21 ) ;	W[ 22 ] = W_CALC( 22 ) ;	W[ 23 ] = W_CALC( 23 ) ;
+	W[ 24 ] = W_CALC( 24 ) ;	W[ 25 ] = W_CALC( 25 ) ;	W[ 26 ] = W_CALC( 26 ) ;	W[ 27 ] = W_CALC( 27 ) ;
+	W[ 28 ] = W_CALC( 28 ) ;	W[ 29 ] = W_CALC( 29 ) ;	W[ 30 ] = W_CALC( 30 ) ;	W[ 31 ] = W_CALC( 31 ) ;
+	W[ 32 ] = W_CALC( 32 ) ;	W[ 33 ] = W_CALC( 33 ) ;	W[ 34 ] = W_CALC( 34 ) ;	W[ 35 ] = W_CALC( 35 ) ;
+	W[ 36 ] = W_CALC( 36 ) ;	W[ 37 ] = W_CALC( 37 ) ;	W[ 38 ] = W_CALC( 38 ) ;	W[ 39 ] = W_CALC( 39 ) ;
+	W[ 40 ] = W_CALC( 40 ) ;	W[ 41 ] = W_CALC( 41 ) ;	W[ 42 ] = W_CALC( 42 ) ;	W[ 43 ] = W_CALC( 43 ) ;
+	W[ 44 ] = W_CALC( 44 ) ;	W[ 45 ] = W_CALC( 45 ) ;	W[ 46 ] = W_CALC( 46 ) ;	W[ 47 ] = W_CALC( 47 ) ;
+	W[ 48 ] = W_CALC( 48 ) ;	W[ 49 ] = W_CALC( 49 ) ;	W[ 50 ] = W_CALC( 50 ) ;	W[ 51 ] = W_CALC( 51 ) ;
+	W[ 52 ] = W_CALC( 52 ) ;	W[ 53 ] = W_CALC( 53 ) ;	W[ 54 ] = W_CALC( 54 ) ;	W[ 55 ] = W_CALC( 55 ) ;
+	W[ 56 ] = W_CALC( 56 ) ;	W[ 57 ] = W_CALC( 57 ) ;	W[ 58 ] = W_CALC( 58 ) ;	W[ 59 ] = W_CALC( 59 ) ;
+	W[ 60 ] = W_CALC( 60 ) ;	W[ 61 ] = W_CALC( 61 ) ;	W[ 62 ] = W_CALC( 62 ) ;	W[ 63 ] = W_CALC( 63 ) ;
+
+	X[ 0 ] = H[ 0 ] ;
+	X[ 1 ] = H[ 1 ] ;
+	X[ 2 ] = H[ 2 ] ;
+	X[ 3 ] = H[ 3 ] ;
+	X[ 4 ] = H[ 4 ] ;
+	X[ 5 ] = H[ 5 ] ;
+	X[ 6 ] = H[ 6 ] ;
+	X[ 7 ] = H[ 7 ] ;
+#if 0
+	for( i = 0 ; i < 64 ; i ++ )
+	{
+		DWORD temp1 = X[ 7 ] + S1( X[ 4 ] ) + CH( X[ 4 ], X[ 5 ], X[ 6 ] ) + K[ i ] + W[ i ] ;
+		DWORD temp2 = S0( X[ 0 ] ) + MAJ( X[ 0 ], X[ 1 ], X[ 2 ] ) ;
+		X[ 7 ] = X[ 6 ] ;
+		X[ 6 ] = X[ 5 ] ;
+		X[ 5 ] = X[ 4 ] ;
+		X[ 4 ] = X[ 3 ] + temp1 ;
+		X[ 3 ] = X[ 2 ] ;
+		X[ 2 ] = X[ 1 ] ;
+		X[ 1 ] = X[ 0 ] ;
+		X[ 0 ] = temp1 + temp2 ;
+	}
+#else
+	for( i = 0 ; i < 64 ; i += 8 )
+	{
+		DWORD temp1 = X[ 7 ] + S1( X[ 4 ] ) + CH( X[ 4 ], X[ 5 ], X[ 6 ] ) + K[ i ] + W[ i ] ;
+		DWORD temp2 = S0( X[ 0 ] ) + MAJ( X[ 0 ], X[ 1 ], X[ 2 ] ) ;
+//		X[ 7 ] = X[ 6 ] ;
+//		X[ 6 ] = X[ 5 ] ;
+//		X[ 5 ] = X[ 4 ] ;
+//		X[ 4 ] = X[ 3 ] + temp1 ;
+//		X[ 3 ] = X[ 2 ] ;
+//		X[ 2 ] = X[ 1 ] ;
+//		X[ 1 ] = X[ 0 ] ;
+//		X[ 0 ] = temp1 + temp2 ;
+		DWORD temp3 = X[ 6 ] + S1( X[ 3 ] + temp1 ) + CH( X[ 3 ] + temp1, X[ 4 ], X[ 5 ] ) + K[ i + 1 ] + W[ i + 1 ] ;
+		DWORD temp4 = S0( temp1 + temp2 ) + MAJ( temp1 + temp2, X[ 0 ], X[ 1 ] ) ;
+//		X[ 7 ] = X[ 5 ] ;
+//		X[ 6 ] = X[ 4 ] ;
+//		X[ 5 ] = X[ 3 ] + temp1 ;
+//		X[ 4 ] = X[ 2 ] + temp3 ;
+//		X[ 3 ] = X[ 1 ] ;
+//		X[ 2 ] = X[ 0 ] ;
+//		X[ 1 ] = temp1 + temp2 ;
+//		X[ 0 ] = temp3 + temp4 ;
+		DWORD temp5 = X[ 5 ] + S1( X[ 2 ] + temp3 ) + CH( X[ 2 ] + temp3, X[ 3 ] + temp1, X[ 4 ] ) + K[ i + 2 ] + W[ i + 2 ] ;
+		DWORD temp6 = S0( temp3 + temp4 ) + MAJ( temp3 + temp4, temp1 + temp2, X[ 0 ] ) ;
+//		X[ 7 ] = X[ 4 ] ;
+//		X[ 6 ] = X[ 3 ] + temp1 ;
+//		X[ 5 ] = X[ 2 ] + temp3 ;
+//		X[ 4 ] = X[ 1 ] + temp5 ;
+//		X[ 3 ] = X[ 0 ] ;
+//		X[ 2 ] = temp1 + temp2 ;
+//		X[ 1 ] = temp3 + temp4 ;
+//		X[ 0 ] = temp5 + temp6 ;
+		DWORD temp7 = X[ 4 ] + S1( X[ 1 ] + temp5 ) + CH( X[ 1 ] + temp5, X[ 2 ] + temp3, X[ 3 ] + temp1 ) + K[ i + 3 ] + W[ i + 3 ] ;
+		DWORD temp8 = S0( temp5 + temp6 ) + MAJ( temp5 + temp6, temp3 + temp4, temp1 + temp2 ) ;
+//		X[ 7 ] = X[ 3 ] + temp1 ;
+//		X[ 6 ] = X[ 2 ] + temp3 ;
+//		X[ 5 ] = X[ 1 ] + temp5 ;
+//		X[ 4 ] = X[ 0 ] + temp7 ;
+//		X[ 3 ] = temp1 + temp2 ;
+//		X[ 2 ] = temp3 + temp4 ;
+//		X[ 1 ] = temp5 + temp6 ;
+//		X[ 0 ] = temp7 + temp8 ;
+		DWORD temp9 = X[ 3 ] + temp1 + S1( X[ 0 ] + temp7 ) + CH( X[ 0 ] + temp7, X[ 1 ] + temp5, X[ 2 ] + temp3 ) + K[ i + 4 ] + W[ i + 4 ] ;
+		DWORD temp10 = S0( temp7 + temp8 ) + MAJ( temp7 + temp8, temp5 + temp6, temp3 + temp4 ) ;
+//		X[ 7 ] = X[ 2 ] + temp3 ;
+//		X[ 6 ] = X[ 1 ] + temp5 ;
+//		X[ 5 ] = X[ 0 ] + temp7 ;
+//		X[ 4 ] = temp1 + temp2 + temp9 ;
+//		X[ 3 ] = temp3 + temp4 ;
+//		X[ 2 ] = temp5 + temp6 ;
+//		X[ 1 ] = temp7 + temp8 ;
+//		X[ 0 ] = temp9 + temp10 ;
+		DWORD temp11 = X[ 2 ] + temp3 + S1( temp1 + temp2 + temp9 ) + CH( temp1 + temp2 + temp9, X[ 0 ] + temp7, X[ 1 ] + temp5 ) + K[ i + 5 ] + W[ i + 5 ] ;
+		DWORD temp12 = S0( temp9 + temp10 ) + MAJ( temp9 + temp10, temp7 + temp8, temp5 + temp6 ) ;
+//		X[ 7 ] = X[ 1 ] + temp5 ;
+//		X[ 6 ] = X[ 0 ] + temp7 ;
+//		X[ 5 ] = temp1 + temp2 + temp9 ;
+//		X[ 4 ] = temp3 + temp4 + temp11 ;
+//		X[ 3 ] = temp5 + temp6 ;
+//		X[ 2 ] = temp7 + temp8 ;
+//		X[ 1 ] = temp9 + temp10 ;
+//		X[ 0 ] = temp11 + temp12 ;
+		DWORD temp13 = X[ 1 ] + temp5 + S1( temp3 + temp4 + temp11 ) + CH( temp3 + temp4 + temp11, temp1 + temp2 + temp9, X[ 0 ] + temp7 ) + K[ i + 6 ] + W[ i + 6 ] ;
+		DWORD temp14 = S0( temp11 + temp12 ) + MAJ( temp11 + temp12, temp9 + temp10, temp7 + temp8 ) ;
+//		X[ 7 ] = X[ 0 ] + temp7 ;
+//		X[ 6 ] = temp1 + temp2 + temp9 ;
+//		X[ 5 ] = temp3 + temp4 + temp11 ;
+//		X[ 4 ] = temp5 + temp6 + temp13 ;
+//		X[ 3 ] = temp7 + temp8 ;
+//		X[ 2 ] = temp9 + temp10 ;
+//		X[ 1 ] = temp11 + temp12 ;
+//		X[ 0 ] = temp13 + temp14 ;
+		DWORD temp15 = X[ 0 ] + temp7 + S1( temp5 + temp6 + temp13 ) + CH( temp5 + temp6 + temp13, temp3 + temp4 + temp11, temp1 + temp2 + temp9 ) + K[ i + 7 ] + W[ i + 7 ] ;
+		DWORD temp16 = S0( temp13 + temp14 ) + MAJ( temp13 + temp14, temp11 + temp12, temp9 + temp10 ) ;
+		X[ 7 ] = temp1 + temp2 + temp9  ;
+		X[ 6 ] = temp3 + temp4 + temp11 ;
+		X[ 5 ] = temp5 + temp6 + temp13 ;
+		X[ 4 ] = temp7 + temp8 + temp15 ;
+		X[ 3 ] = temp9 + temp10  ;
+		X[ 2 ] = temp11 + temp12 ;
+		X[ 1 ] = temp13 + temp14 ;
+		X[ 0 ] = temp15 + temp16 ;
+	}
+#endif
+	H[ 0 ] += X[ 0 ] ;
+	H[ 1 ] += X[ 1 ] ;
+	H[ 2 ] += X[ 2 ] ;
+	H[ 3 ] += X[ 3 ] ;
+	H[ 4 ] += X[ 4 ] ;
+	H[ 5 ] += X[ 5 ] ;
+	H[ 6 ] += X[ 6 ] ;
+	H[ 7 ] += X[ 7 ] ;
+}
+
+extern void HashSha256( const void *SrcData, size_t SrcDataSize, void *DestBuffer )
+{
+	DWORD H[ 8 ] ;
+	BYTE Buffer[ 128 ] ;
+	const BYTE *sp = ( const BYTE * )SrcData ;
+	size_t i ;
+	size_t FullBlockNum = SrcDataSize / 64 ;
+	size_t DataSize ;
+	size_t FillSize ;
+	ULONGLONG BitLength = SrcDataSize * 8 ;
+
+	H[ 0 ] = 0x6a09e667 ;
+	H[ 1 ] = 0xbb67ae85 ;
+	H[ 2 ] = 0x3c6ef372 ;
+	H[ 3 ] = 0xa54ff53a ;
+	H[ 4 ] = 0x510e527f ;
+	H[ 5 ] = 0x9b05688c ;
+	H[ 6 ] = 0x1f83d9ab ;
+	H[ 7 ] = 0x5be0cd19 ;
+
+	for( i = 0 ; i < FullBlockNum ; i ++ )
+	{
+		HashSha256_Calc( sp, H ) ;
+		sp += 64 ;
+	}
+
+	DataSize = SrcDataSize - FullBlockNum * 64 ;
+	for( i = 0 ; i < DataSize ; i ++ )
+	{
+		Buffer[ i ] = sp[ i ] ;
+	}
+	Buffer[ DataSize ] = 0x80 ;
+
+	if( DataSize + 1 + 8 > 64 )
+	{
+		FillSize = ( 128 - 8 ) - ( DataSize + 1 ) ;
+		for( i = 0 ; i < FillSize ; i ++ )
+		{
+			Buffer[ DataSize + 1 + i ] = 0 ;
+		}
+
+		Buffer[ 127 ] = ( ( BYTE * )&BitLength )[ 0 ] ;
+		Buffer[ 126 ] = ( ( BYTE * )&BitLength )[ 1 ] ;
+		Buffer[ 125 ] = ( ( BYTE * )&BitLength )[ 2 ] ;
+		Buffer[ 124 ] = ( ( BYTE * )&BitLength )[ 3 ] ;
+		Buffer[ 123 ] = ( ( BYTE * )&BitLength )[ 4 ] ;
+		Buffer[ 122 ] = ( ( BYTE * )&BitLength )[ 5 ] ;
+		Buffer[ 121 ] = ( ( BYTE * )&BitLength )[ 6 ] ;
+		Buffer[ 120 ] = ( ( BYTE * )&BitLength )[ 7 ] ;
+
+		HashSha256_Calc( &Buffer[  0 ], H ) ;
+		HashSha256_Calc( &Buffer[ 64 ], H ) ;
+	}
+	else
+	{
+		FillSize = ( 64 - 8 ) - ( DataSize + 1 ) ;
+		for( i = 0 ; i < FillSize ; i ++ )
+		{
+			Buffer[ DataSize + 1 + i ] = 0 ;
+		}
+
+		Buffer[ 63 ] = ( ( BYTE * )&BitLength )[ 0 ] ;
+		Buffer[ 62 ] = ( ( BYTE * )&BitLength )[ 1 ] ;
+		Buffer[ 61 ] = ( ( BYTE * )&BitLength )[ 2 ] ;
+		Buffer[ 60 ] = ( ( BYTE * )&BitLength )[ 3 ] ;
+		Buffer[ 59 ] = ( ( BYTE * )&BitLength )[ 4 ] ;
+		Buffer[ 58 ] = ( ( BYTE * )&BitLength )[ 5 ] ;
+		Buffer[ 57 ] = ( ( BYTE * )&BitLength )[ 6 ] ;
+		Buffer[ 56 ] = ( ( BYTE * )&BitLength )[ 7 ] ;
+
+		HashSha256_Calc( &Buffer[  0 ], H ) ;
+	}
+
+	( ( BYTE * )DestBuffer )[  0 ] = ( ( BYTE * )H )[ 3 ] ;
+	( ( BYTE * )DestBuffer )[  1 ] = ( ( BYTE * )H )[ 2 ] ;
+	( ( BYTE * )DestBuffer )[  2 ] = ( ( BYTE * )H )[ 1 ] ;
+	( ( BYTE * )DestBuffer )[  3 ] = ( ( BYTE * )H )[ 0 ] ;
+	( ( BYTE * )DestBuffer )[  4 ] = ( ( BYTE * )H )[ 7 ] ;
+	( ( BYTE * )DestBuffer )[  5 ] = ( ( BYTE * )H )[ 6 ] ;
+	( ( BYTE * )DestBuffer )[  6 ] = ( ( BYTE * )H )[ 5 ] ;
+	( ( BYTE * )DestBuffer )[  7 ] = ( ( BYTE * )H )[ 4 ] ;
+	( ( BYTE * )DestBuffer )[  8 ] = ( ( BYTE * )H )[ 11 ] ;
+	( ( BYTE * )DestBuffer )[  9 ] = ( ( BYTE * )H )[ 10 ] ;
+	( ( BYTE * )DestBuffer )[ 10 ] = ( ( BYTE * )H )[ 9 ] ;
+	( ( BYTE * )DestBuffer )[ 11 ] = ( ( BYTE * )H )[ 8 ] ;
+	( ( BYTE * )DestBuffer )[ 12 ] = ( ( BYTE * )H )[ 15 ] ;
+	( ( BYTE * )DestBuffer )[ 13 ] = ( ( BYTE * )H )[ 14 ] ;
+	( ( BYTE * )DestBuffer )[ 14 ] = ( ( BYTE * )H )[ 13 ] ;
+	( ( BYTE * )DestBuffer )[ 15 ] = ( ( BYTE * )H )[ 12 ] ;
+	( ( BYTE * )DestBuffer )[ 16 ] = ( ( BYTE * )H )[ 19 ] ;
+	( ( BYTE * )DestBuffer )[ 17 ] = ( ( BYTE * )H )[ 18 ] ;
+	( ( BYTE * )DestBuffer )[ 18 ] = ( ( BYTE * )H )[ 17 ] ;
+	( ( BYTE * )DestBuffer )[ 19 ] = ( ( BYTE * )H )[ 16 ] ;
+	( ( BYTE * )DestBuffer )[ 20 ] = ( ( BYTE * )H )[ 23 ] ;
+	( ( BYTE * )DestBuffer )[ 21 ] = ( ( BYTE * )H )[ 22 ] ;
+	( ( BYTE * )DestBuffer )[ 22 ] = ( ( BYTE * )H )[ 21 ] ;
+	( ( BYTE * )DestBuffer )[ 23 ] = ( ( BYTE * )H )[ 20 ] ;
+	( ( BYTE * )DestBuffer )[ 24 ] = ( ( BYTE * )H )[ 27 ] ;
+	( ( BYTE * )DestBuffer )[ 25 ] = ( ( BYTE * )H )[ 26 ] ;
+	( ( BYTE * )DestBuffer )[ 26 ] = ( ( BYTE * )H )[ 25 ] ;
+	( ( BYTE * )DestBuffer )[ 27 ] = ( ( BYTE * )H )[ 24 ] ;
+	( ( BYTE * )DestBuffer )[ 28 ] = ( ( BYTE * )H )[ 31 ] ;
+	( ( BYTE * )DestBuffer )[ 29 ] = ( ( BYTE * )H )[ 30 ] ;
+	( ( BYTE * )DestBuffer )[ 30 ] = ( ( BYTE * )H )[ 29 ] ;
+	( ( BYTE * )DestBuffer )[ 31 ] = ( ( BYTE * )H )[ 28 ] ;
+}
+
+
+
+
+static DWORD CRC32Table[ 256 ] ;
+static int CRC32TableInit = 0 ;
+
+// ?o?C?i???f?[?^?????? CRC32 ???n?b?V?ÅcÅfl???v?Z????
+extern DWORD HashCRC32( const void *SrcData, size_t SrcDataSize )
+{
+	DWORD CRC = 0xffffffff ;
+	BYTE *SrcByte = ( BYTE * )SrcData ;
+	DWORD i ;
+
+	// ?e?[?u?????ÅÒ??ÅÒ????????????????????ÅÒ??ÅÒ?????
+	if( CRC32TableInit == 0 )
+	{
+		DWORD Magic = 0xedb88320 ;	// 0x4c11db7 ???r?b?g???x?????ÅˆÅh????t???????????? 0xedb88320
+		DWORD j ;
+
+		for( i = 0; i < 256; i++ )
+		{
+			DWORD Data = i ;
+			for( j = 0; j < 8; j++ )
+			{
+				int b = ( Data & 1 ) ;
+				Data >>= 1 ;
+				if( b != 0 )
+				{
+					Data ^= Magic ;
+				}
+			}
+			CRC32Table[ i ] = Data ;
+		}
+
+		// ?e?[?u?????ÅÒ??ÅÒ??????t?ÅÒ?O???Åò????
+		CRC32TableInit = 1 ;
+	}
+
+	for( i = 0 ; i < SrcDataSize ; i ++ )
+	{
+		CRC = CRC32Table[ ( BYTE )( CRC ^ SrcByte[ i ] ) ] ^ ( CRC >> 8 ) ;
+	}
+
+	return CRC ^ 0xffffffff ;
+}
+
+
+
+#ifndef DX_NON_NAMESPACE
+
+}
+
+#endif // DX_NON_NAMESPACE
+
