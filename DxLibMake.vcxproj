@@ -265,7 +265,7 @@
       </PreprocessorDefinitions>
     </ResourceCompile>
     <PostBuildEvent>
-      <Command>xcopy "$(ProjectDir)bin\*.*" "$(OutDir)" /Y /I /E</Command>
+      <Command>xcopy "$(ProjectDir)lib_external\*.*" "$(OutDir)" /Y /I /E</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -294,7 +294,7 @@
       </ResourceOutputFileName>
     </ResourceCompile>
     <PostBuildEvent>
-      <Command>xcopy "$(ProjectDir)bin\*.*" "$(OutDir)" /Y /I /E</Command>
+      <Command>xcopy "$(ProjectDir)lib_external\*.*" "$(OutDir)" /Y /I /E</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
