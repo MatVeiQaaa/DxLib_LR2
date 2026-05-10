@@ -9,7 +9,7 @@
 #ifndef DX_LIB_H
 #define DX_LIB_H
 
-#include "DxCompileConfig.h"
+#include "../DxCompileConfig.h"
 
 // ?c?w????C?u????????o?[?W?????g
 #define DXLIB_VERSION 0x324f
@@ -1927,17 +1927,17 @@ typedef struct tagIPDATA_IPv6
 // ????h?v???g?^?C?v????------------------------------------------------------------------
 
 #ifdef WINDOWS_DESKTOP_OS
-#include "DxFunctionWin.h"
+#include "../DxFunctionWin.h"
 #endif // WINDOWS_DESKTOP_OS
 
 #ifdef __ANDROID__
-#include "DxFunctionAndroid.h"
+#include "../DxFunctionAndroid.h"
 #endif // __ANDROID__
 
 #ifdef __APPLE__
-    #include "TargetConditionals.h"
+    #include "../TargetConditionals.h"
     #if TARGET_OS_IPHONE
-		#include "DxFunctioniOS.h"
+		#include "../DxFunctioniOS.h"
 	#endif
 #endif // __APPLE__
 
