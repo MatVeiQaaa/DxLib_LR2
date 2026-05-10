@@ -1,6 +1,6 @@
 // -------------------------------------------------------------------------------
 // 
-// 		ＤＸライブラリ		描画ＡＰＩプログラムヘッダファイル
+// 		?c?w?‰?C?u?‰??		?`‰??`?o?h?v???O?‰???w?b?_?t?@?C??
 // 
 // 				Ver 3.24f
 // 
@@ -13,7 +13,7 @@
 
 #ifndef DX_NON_GRAPHICS
 
-// インクルード ------------------------------------------------------------------
+// ?C?“?N???[?h ------------------------------------------------------------------
 #include "DxDirectX.h"
 
 #ifndef DX_NON_NAMESPACE
@@ -23,41 +23,41 @@ namespace DxLib
 
 #endif // DX_NON_NAMESPACE
 
-// マクロ定義 --------------------------------------------------------------------
+// ?}?N??’??` --------------------------------------------------------------------
 
-// 構造体定義 --------------------------------------------------------------------
+// ?\‘?‘?’??` --------------------------------------------------------------------
 
 struct GRAPHICSAPIINFO_WIN
 {
-	D_IDirectDraw7			*DirectDraw7Object ;					// ＤｉｒｅｃｔＤｒａｗインターフェイス
-	LONGLONG				DirectDraw7_VSyncWaitTime ;				// 前回ＶＳＹＮＣ待ちをしてから次にチェックするまでに待つ時間
-	ULONGLONG				DirectDraw7_VSyncTime ;					// 前回ＶＳＹＮＣ待ちをした時間
+	D_IDirectDraw7			*DirectDraw7Object ;					// ?c?‰?’?…???”?c?’?????C?“?^?[?t?F?C?X
+	LONGLONG				DirectDraw7_VSyncWaitTime ;				// ‘O‰??u?r?x?m?b‘??????????????????`?F?b?N??????????‘???????
+	ULONGLONG				DirectDraw7_VSyncTime ;					// ‘O‰??u?r?x?m?b‘?????????????
 
 #ifndef DX_NON_DIRECT3D9
-	HINSTANCE				Direct3D9DLL ;							// Ｄｉｒｅｃｔ３Ｄ９．ＤＬＬ
-	D_IDirect3D9			*Direct3D9Object ;						// Ｄｉｒｅｃｔ３Ｄ９インターフェイス
-	D_IDirect3D9Ex			*Direct3D9ExObject ;					// Ｄｉｒｅｃｔ３Ｄ９Ｅｘインターフェイス
-	D_IDirect3DDevice9		*Direct3DDevice9Object ;				// Ｄｉｒｅｃｔ３ＤＤｅｖｉｃｅ９インターフェイス
-	D_IDirect3DDevice9Ex	*Direct3DDevice9ExObject ;				// Ｄｉｒｅｃｔ３ＤＤｅｖｉｃｅ９Ｅｘインターフェイス
-	D_IDirect3DSwapChain9	*Direct3DSwapChain9Object ;				// Ｄｉｒｅｃｔ３ＤＳｗａｐＣｈａｉｎ９インターフェイス
+	HINSTANCE				Direct3D9DLL ;							// ?c?‰?’?…???”?R?c?X?D?c?k?k
+	D_IDirect3D9			*Direct3D9Object ;						// ?c?‰?’?…???”?R?c?X?C?“?^?[?t?F?C?X
+	D_IDirect3D9Ex			*Direct3D9ExObject ;					// ?c?‰?’?…???”?R?c?X?d???C?“?^?[?t?F?C?X
+	D_IDirect3DDevice9		*Direct3DDevice9Object ;				// ?c?‰?’?…???”?R?c?c?…???‰???…?X?C?“?^?[?t?F?C?X
+	D_IDirect3DDevice9Ex	*Direct3DDevice9ExObject ;				// ?c?‰?’?…???”?R?c?c?…???‰???…?X?d???C?“?^?[?t?F?C?X
+	D_IDirect3DSwapChain9	*Direct3DSwapChain9Object ;				// ?c?‰?’?…???”?R?c?r???????b?????‰???X?C?“?^?[?t?F?C?X
 #endif // DX_NON_DIRECT3D9
 
 #ifndef DX_NON_DIRECT3D11
-	HINSTANCE				Direct3D11DLL ;							// Ｄｉｒｅｃｔ３Ｄ１１．ＤＬＬ
-	HINSTANCE				DXGIDLL ;								// ｄｘｇｉ．ｄｌｌ
-	D_IDXGIDevice1			*DXGIDevice1Object ;					// ＤＸＧＩＤｅｖｉｃｅ１インターフェイス
-	D_IDXGIAdapter			*DXGIAdapterObject ;					// ＤＸＧＩＡｄａｐｔｅｒインターフェイス
-	D_IDXGIAdapter1			*DXGIAdapter1Object ;					// ＤＸＧＩＡｄａｐｔｅｒ１インターフェイス
-	D_IDXGIAdapter2			*DXGIAdapter2Object ;					// ＤＸＧＩＡｄａｐｔｅｒ２インターフェイス
-	D_IDXGIAdapter3			*DXGIAdapter3Object ;					// ＤＸＧＩＡｄａｐｔｅｒ３インターフェイス
-	D_IDXGIAdapter4			*DXGIAdapter4Object ;					// ＤＸＧＩＡｄａｐｔｅｒ４インターフェイス
-	D_IDXGIFactory			*DXGIFactoryObject ;					// ＤＸＧＩＦａｃｔｏｒｙインターフェイス
-	D_IDXGIFactory1			*DXGIFactory1Object ;					// ＤＸＧＩＦａｃｔｏｒｙ１インターフェイス
-	D_IDXGIFactory2			*DXGIFactory2Object ;					// ＤＸＧＩＦａｃｔｏｒｙ２インターフェイス
-	D_IDXGIFactory6			*DXGIFactory6Object ;					// ＤＸＧＩＦａｃｔｏｒｙ６インターフェイス
-	D_ID3D11Device			*D3D11DeviceObject ;					// Ｄ３Ｄ１１Ｄｅｖｉｃｅインターフェイス
-	D_ID3D11DeviceContext	*D3D11DeviceContext ;					// Ｄ３Ｄ１１ＤｅｖｉｃｅＣｏｎｔｅｘｔインターフェイス
-	D_ID3D11DeviceContext	*D3D11DeferredContext ;					// Ｄ３Ｄ１１ＤｅｖｉｃｅＣｏｎｔｅｘｔインターフェイス( DeferredContext )
+	HINSTANCE				Direct3D11DLL ;							// ?c?‰?’?…???”?R?c?P?P?D?c?k?k
+	HINSTANCE				DXGIDLL ;								// ?????‡?‰?D??????
+	D_IDXGIDevice1			*DXGIDevice1Object ;					// ?c?w?f?h?c?…???‰???…?P?C?“?^?[?t?F?C?X
+	D_IDXGIAdapter			*DXGIAdapterObject ;					// ?c?w?f?h?`???????”?…?’?C?“?^?[?t?F?C?X
+	D_IDXGIAdapter1			*DXGIAdapter1Object ;					// ?c?w?f?h?`???????”?…?’?P?C?“?^?[?t?F?C?X
+	D_IDXGIAdapter2			*DXGIAdapter2Object ;					// ?c?w?f?h?`???????”?…?’?Q?C?“?^?[?t?F?C?X
+	D_IDXGIAdapter3			*DXGIAdapter3Object ;					// ?c?w?f?h?`???????”?…?’?R?C?“?^?[?t?F?C?X
+	D_IDXGIAdapter4			*DXGIAdapter4Object ;					// ?c?w?f?h?`???????”?…?’?S?C?“?^?[?t?F?C?X
+	D_IDXGIFactory			*DXGIFactoryObject ;					// ?c?w?f?h?e?????”???’???C?“?^?[?t?F?C?X
+	D_IDXGIFactory1			*DXGIFactory1Object ;					// ?c?w?f?h?e?????”???’???P?C?“?^?[?t?F?C?X
+	D_IDXGIFactory2			*DXGIFactory2Object ;					// ?c?w?f?h?e?????”???’???Q?C?“?^?[?t?F?C?X
+	D_IDXGIFactory6			*DXGIFactory6Object ;					// ?c?w?f?h?e?????”???’???U?C?“?^?[?t?F?C?X
+	D_ID3D11Device			*D3D11DeviceObject ;					// ?c?R?c?P?P?c?…???‰???…?C?“?^?[?t?F?C?X
+	D_ID3D11DeviceContext	*D3D11DeviceContext ;					// ?c?R?c?P?P?c?…???‰???…?b?????”?…???”?C?“?^?[?t?F?C?X
+	D_ID3D11DeviceContext	*D3D11DeferredContext ;					// ?c?R?c?P?P?c?…???‰???…?b?????”?…???”?C?“?^?[?t?F?C?X( DeferredContext )
 	int						D3D11BufferNum ;
 	int						D3D11Texture1DNum ;
 	int						D3D11Texture2DNum ;
@@ -76,11 +76,11 @@ struct GRAPHICSAPIINFO_WIN
 #endif // DX_NON_DIRECT3D11
 } ;
 
-// 内部大域変数宣言 --------------------------------------------------------------
+// “??”‘??????”???? --------------------------------------------------------------
 
 extern GRAPHICSAPIINFO_WIN GAPIWin ;
 
-// 関数プロトタイプ宣言-----------------------------------------------------------
+// ???”?v???g?^?C?v????-----------------------------------------------------------
 
 
 
@@ -213,7 +213,7 @@ extern	HRESULT	D3D11Device_CreateRasterizerState		( const D_D3D11_RASTERIZER_DES
 extern	HRESULT	D3D11Device_CreateSamplerState			( const D_D3D11_SAMPLER_DESC *pSamplerDesc, D_ID3D11SamplerState **ppSamplerState ) ;
 extern	HRESULT	D3D11Device_CheckFormatSupport			( D_DXGI_FORMAT Format, UINT *pFormatSupport ) ;
 extern	long	D3D11Device_CheckMultisampleQualityLevels( D_DXGI_FORMAT Format, UINT SampleCount, UINT *pNumQualityLevels ) ;
-extern	int		D3D11Device_CheckMultiSampleParam		( D_DXGI_FORMAT Format, UINT *Samples, UINT *Quality, int SamplesFailedBreak ) ;	// マルチサンプルレンダリングのサンプル数とクオリティをチェック
+extern	int		D3D11Device_CheckMultiSampleParam		( D_DXGI_FORMAT Format, UINT *Samples, UINT *Quality, int SamplesFailedBreak ) ;	// ?}???`?T?“?v?????“?_???“?O???T?“?v???”???N?I???e?B???`?F?b?N
 
 extern	void *	D3D11DeviceContext_Get					( void ) ;
 extern	void *	D3D11DeviceContext_Deferred_Get			( void ) ;
@@ -268,7 +268,7 @@ extern	void	D3D11RenderTargetView_GetDesc			( D_ID3D11RenderTargetView *RenderTa
 #ifndef DX_NON_DIRECT3D9
 
 extern	ULONG	Direct3D9_ObjectRelease_ASync						( void *pObject, int ASyncThread = FALSE ) ;
-extern	int		Direct3D9_CheckMultiSampleParam_ASync				( D_D3DFORMAT Format, D_D3DMULTISAMPLE_TYPE *Samples, DWORD *Quality, int SamplesFailedBreak, int ASyncThread = FALSE ) ;	// マルチサンプルレンダリングのサンプル数とクオリティをチェック
+extern	int		Direct3D9_CheckMultiSampleParam_ASync				( D_D3DFORMAT Format, D_D3DMULTISAMPLE_TYPE *Samples, DWORD *Quality, int SamplesFailedBreak, int ASyncThread = FALSE ) ;	// ?}???`?T?“?v?????“?_???“?O???T?“?v???”???N?I???e?B???`?F?b?N
 
 extern	HRESULT	Direct3DDevice9_CreateRenderTarget_ASync			( UINT Width, UINT Height, D_D3DFORMAT Format, D_D3DMULTISAMPLE_TYPE MultiSample, DWORD MultisampleQuality, BOOL Lockable, D_IDirect3DSurface9** ppSurface, HANDLE* pSharedHandle, int ASyncThread ) ;
 extern	HRESULT	Direct3DDevice9_CreateDepthStencilSurface_ASync		( UINT Width, UINT Height, D_D3DFORMAT Format, D_D3DMULTISAMPLE_TYPE MultiSample, DWORD MultisampleQuality, BOOL Discard, D_IDirect3DSurface9** ppSurface, HANDLE* pSharedHandle, int ASyncThread ) ;
@@ -280,8 +280,8 @@ extern	HRESULT	Direct3DDevice9_UpdateSurface_ASync					( D_IDirect3DSurface9* pS
 extern	HRESULT	Direct3DDevice9_UpdateTexture_ASync					( D_IDirect3DBaseTexture9* pSourceTexture, D_IDirect3DBaseTexture9* pDestinationTexture, int ASyncThread ) ;
 extern	HRESULT	Direct3DDevice9_CreateVertexShader_ASync			( CONST DWORD* pFunction, D_IDirect3DVertexShader9** ppShader, int ASyncThread ) ;
 extern	HRESULT	Direct3DDevice9_CreatePixelShader_ASync				( CONST DWORD* pFunction, D_IDirect3DPixelShader9** ppShader, int ASyncThread ) ;
-extern	int		Direct3DDevice9_CreateVertexBuffer_ASync			( DWORD Length, DWORD Usage, DWORD FVFFlag, D_D3DPOOL Pool, D_IDirect3DVertexBuffer9 **BufferP, int ASyncThread = FALSE ) ;		// 頂点バッファを作成する
-extern	int		Direct3DDevice9_CreateIndexBuffer_ASync				( DWORD Length, DWORD Usage, D_D3DFORMAT Format, D_D3DPOOL Pool, D_IDirect3DIndexBuffer9 **BufferP, int ASyncThread = FALSE ) ;	// インデックスバッファを作成する
+extern	int		Direct3DDevice9_CreateVertexBuffer_ASync			( DWORD Length, DWORD Usage, DWORD FVFFlag, D_D3DPOOL Pool, D_IDirect3DVertexBuffer9 **BufferP, int ASyncThread = FALSE ) ;		// ’?“_?o?b?t?@??????????
+extern	int		Direct3DDevice9_CreateIndexBuffer_ASync				( DWORD Length, DWORD Usage, D_D3DFORMAT Format, D_D3DPOOL Pool, D_IDirect3DIndexBuffer9 **BufferP, int ASyncThread = FALSE ) ;	// ?C?“?f?b?N?X?o?b?t?@??????????
 
 extern	HRESULT	Direct3DTexture9_GetSurfaceLevel_ASync				( D_IDirect3DTexture9 *Texture, UINT Level,  D_IDirect3DSurface9** ppSurfaceLevel, int ASyncThread ) ;
 extern	HRESULT	Direct3DTexture9_LockRect_ASync						( D_IDirect3DTexture9 *Texture, UINT Level, D_D3DLOCKED_RECT* pLockedRect, CONST RECT* pRect, DWORD Flags, int ASyncThread ) ;
@@ -320,7 +320,7 @@ extern	long	Direct3D9_CheckDepthStencilMatch		( DWORD Adapter, D_D3DDEVTYPE Devi
 extern	long	Direct3D9_GetDeviceCaps					( DWORD Adapter, D_D3DDEVTYPE DeviceType, D_D3DCAPS9* pCaps) ;
 extern	HANDLE	Direct3D9_GetAdapterMonitor				( DWORD Adapter ) ;
 extern	int		Direct3D9_CreateDevice					( void ) ;
-extern	int		Direct3D9_CheckMultiSampleParam			( D_D3DFORMAT Format, D_D3DMULTISAMPLE_TYPE *Samples, DWORD *Quality, int SamplesFailedBreak ) ;	// マルチサンプルレンダリングのサンプル数とクオリティをチェック
+extern	int		Direct3D9_CheckMultiSampleParam			( D_D3DFORMAT Format, D_D3DMULTISAMPLE_TYPE *Samples, DWORD *Quality, int SamplesFailedBreak ) ;	// ?}???`?T?“?v?????“?_???“?O???T?“?v???”???N?I???e?B???`?F?b?N
 extern	int		Direct3D9_IsValid						( void ) ;
 extern	int		Direct3D9_IsExObject					( void ) ;
 
@@ -385,6 +385,7 @@ extern	int		Direct3DDevice9_IsValid					( void ) ;
 extern	void *	Direct3DDevice9_GetObject				( void ) ;
 extern	int		Direct3DDevice9_IsLost					( void ) ;
 extern	int		Direct3DDevice9_SetupTimerPresent		( int EnableFlag ) ;
+extern	int		Direct3DDevice9_Reset(void);
 
 
 extern	long	Direct3DTexture9_GetSurfaceLevel		( D_IDirect3DTexture9 *pTexture, UINT Level, D_IDirect3DSurface9 ** ppSurfaceLevel) ;

@@ -4,6 +4,9 @@
     <Filter Include="Windows">
       <UniqueIdentifier>{d16f5c1b-401c-41aa-869c-c29257f95a0e}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Shaders">
+      <UniqueIdentifier>{aa069bf1-fbf3-4cea-9628-00eb0cdd3b85}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="DxThread.cpp" />
@@ -193,7 +196,6 @@
     <ClInclude Include="DxHeap.h" />
     <ClInclude Include="DxInput.h" />
     <ClInclude Include="DxInputString.h" />
-    <ClInclude Include="DxLib.h" />
     <ClInclude Include="DxLog.h" />
     <ClInclude Include="DxMask.h" />
     <ClInclude Include="DxMath.h" />
@@ -326,5 +328,15 @@
     <ClInclude Include="Windows\DxLive2DCubism4Win.h">
       <Filter>Windows</Filter>
     </ClInclude>
+    <ClInclude Include="resource.h" />
+    <ClInclude Include="include\DxLib.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="Shader\Windows\Direct3D9\UpscaLR2\CRT_Geom_PS.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="resources.rc" />
   </ItemGroup>
 </Project>

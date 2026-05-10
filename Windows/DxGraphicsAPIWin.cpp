@@ -1,19 +1,19 @@
 // ----------------------------------------------------------------------------
 // 
-// 		ＤＸライブラリ		描画ＡＰＩプログラム
+// 		?c?w????C?u?????		?`????`?o?h?v???O?????
 // 
 // 				Ver 3.24f
 // 
 // ----------------------------------------------------------------------------
 
-// ＤＸライブラリ作成時用定義
+// ?c?w????C?u????????????p?f??`
 #define DX_MAKE
 
 #include "DxGraphicsAPIWin.h"
 
 #ifndef DX_NON_GRAPHICS
 
-// インクルード----------------------------------------------------------------
+// ?C??g?N???[?h----------------------------------------------------------------
 #include "DxGraphicsWin.h"
 #include "DxGraphicsD3D9.h"
 #include "DxGraphicsD3D11.h"
@@ -26,6 +26,8 @@
 #include "../DxBaseFunc.h"
 #include "../DxModel.h"
 #include "../DxMath.h"
+#include <fstream>
+#include <vector>
 
 #ifndef DX_NON_NAMESPACE
 
@@ -34,26 +36,26 @@ namespace DxLib
 
 #endif // DX_NON_NAMESPACE
 
-// マクロ定義 -----------------------------------------------------------------
+// ?}?N???f??` -----------------------------------------------------------------
 
-// タイマーＩＤ
+// ?^?C?}?[?h?c
 #define SCREENFLIPTIMER_ID		(32767)
 
-// 構造体宣言 -----------------------------------------------------------------
+// ?\?e??e????? -----------------------------------------------------------------
 
-// データ定義 -----------------------------------------------------------------
+// ?f?[?^?f??` -----------------------------------------------------------------
 
 GRAPHICSAPIINFO_WIN GAPIWin ;
 
-// 関数宣言 -------------------------------------------------------------------
+// ????h???? -------------------------------------------------------------------
 
 #if _MSC_VER > 1200 || defined( DX_GCC_COMPILE_4_9_2 )
-static  VOID CALLBACK ScreenFlipTimerProc( HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime );							// テンポラリプライマリバッファの内容をプライマリバッファに転送するコールバック関数
+static  VOID CALLBACK ScreenFlipTimerProc( HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime );							// ?e??g?|??????v????C?}???o?b?t?@???g??e???v????C?}???o?b?t?@???g]?e??????R?[???o?b?N????h
 #else
-static  VOID CALLBACK ScreenFlipTimerProc( HWND hwnd, UINT uMsg, UINT idEvent, DWORD dwTime );								// テンポラリプライマリバッファの内容をプライマリバッファに転送するコールバック関数
+static  VOID CALLBACK ScreenFlipTimerProc( HWND hwnd, UINT uMsg, UINT idEvent, DWORD dwTime );								// ?e??g?|??????v????C?}???o?b?t?@???g??e???v????C?}???o?b?t?@???g]?e??????R?[???o?b?N????h
 #endif
 
-// プログラム -----------------------------------------------------------------
+// ?v???O????? -----------------------------------------------------------------
 
 
 
@@ -66,42 +68,42 @@ extern int DirectDraw7_Create( void )
 
 	SETUP_WIN_API
 
-	// 既に作成済みの場合は一度削除する
+	// ????????????????????????gx????????
 	if( GAPIWin.DirectDraw7Object )
 	{
 		GAPIWin.DirectDraw7Object->Release() ;
 		GAPIWin.DirectDraw7Object = NULL ;
 	}
 
-	// ＤｉｒｅｃｔＤｒａｗオブジェクトの作成
-	DXST_LOGFILE_ADDUTF16LE( "\x44\x00\x69\x00\x72\x00\x65\x00\x63\x00\x74\x00\x44\x00\x72\x00\x61\x00\x77\x00\x20\x00\xaa\x30\xd6\x30\xb8\x30\xa7\x30\xaf\x30\xc8\x30\x6e\x30\xd6\x53\x97\x5f\x92\x30\x4c\x88\x44\x30\x7e\x30\x59\x30\x2e\x00\x2e\x00\x2e\x00\x2e\x00\x20\x00\x20\x00\x00"/*@ L"DirectDraw オブジェクトの取得を行います....  " @*/ ) ;
+	// ?c?????f??c????h?c??f?????I?u?W?F?N?g??????
+	DXST_LOGFILE_ADDUTF16LE( "\x44\x00\x69\x00\x72\x00\x65\x00\x63\x00\x74\x00\x44\x00\x72\x00\x61\x00\x77\x00\x20\x00\xaa\x30\xd6\x30\xb8\x30\xa7\x30\xaf\x30\xc8\x30\x6e\x30\xd6\x53\x97\x5f\x92\x30\x4c\x88\x44\x30\x7e\x30\x59\x30\x2e\x00\x2e\x00\x2e\x00\x2e\x00\x20\x00\x20\x00\x00"/*@ L"DirectDraw ?I?u?W?F?N?g?????g????s??????....  " @*/ ) ;
 	hr = WinAPIData.Win32Func.CoCreateInstanceFunc( CLSID_DIRECTDRAW7, NULL, CLSCTX_ALL, IID_IDIRECTDRAW7, ( LPVOID *)&GAPIWin.DirectDraw7Object );
 	if( !FAILED( hr ) )
 	{
-		DXST_LOGFILE_ADDUTF16LE( "\x10\x62\x9f\x52\x0a\x00\x00"/*@ L"成功\n" @*/ ) ;
-		DXST_LOGFILE_ADDUTF16LE( "\x15\x5f\x4d\x30\x9a\x7d\x4d\x30\x1d\x52\x1f\x67\x16\x53\xe6\x51\x06\x74\x2e\x00\x2e\x00\x2e\x00\x20\x00\x00"/*@ L"引き続き初期化処理... " @*/ ) ; 
+		DXST_LOGFILE_ADDUTF16LE( "\x10\x62\x9f\x52\x0a\x00\x00"/*@ L"?????\n" @*/ ) ;
+		DXST_LOGFILE_ADDUTF16LE( "\x15\x5f\x4d\x30\x9a\x7d\x4d\x30\x1d\x52\x1f\x67\x16\x53\xe6\x51\x06\x74\x2e\x00\x2e\x00\x2e\x00\x20\x00\x00"/*@ L"?????e?}??????????????... " @*/ ) ; 
 		hr = GAPIWin.DirectDraw7Object->Initialize( NULL ) ;
 		if( FAILED( hr ) ) 
 		{
-			DXST_LOGFILE_ERRCODE_ADDUTF16LE( DX_ERRORCODE_WIN_FAILED_INITIALIZE_DIRECTDRAW7, "\x44\x00\x69\x00\x72\x00\x65\x00\x63\x00\x74\x00\x44\x00\x72\x00\x61\x00\x77\x00\xaa\x30\xd6\x30\xb8\x30\xa7\x30\xaf\x30\xc8\x30\x6e\x30\x1d\x52\x1f\x67\x16\x53\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"DirectDrawオブジェクトの初期化に失敗しました\n" @*/ );
+			DXST_LOGFILE_ERRCODE_ADDUTF16LE( DX_ERRORCODE_WIN_FAILED_INITIALIZE_DIRECTDRAW7, "\x44\x00\x69\x00\x72\x00\x65\x00\x63\x00\x74\x00\x44\x00\x72\x00\x61\x00\x77\x00\xaa\x30\xd6\x30\xb8\x30\xa7\x30\xaf\x30\xc8\x30\x6e\x30\x1d\x52\x1f\x67\x16\x53\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"DirectDraw?I?u?W?F?N?g???????????????hs????????\n" @*/ );
 			GAPIWin.DirectDraw7Object->Release() ;
 			return -1 ;
 		}
-		DXST_LOGFILE_ADDUTF16LE( "\x1d\x52\x1f\x67\x16\x53\x6b\x30\x10\x62\x9f\x52\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"初期化に成功しました\n" @*/ ) ;
+		DXST_LOGFILE_ADDUTF16LE( "\x1d\x52\x1f\x67\x16\x53\x6b\x30\x10\x62\x9f\x52\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"???????????????????????\n" @*/ ) ;
 	}
 	else
 	{
-		DXST_LOGFILE_ERRCODE_ADDUTF16LE( DX_ERRORCODE_WIN_FAILED_CREATE_DIRECTDRAW7, "\xaa\x30\xd6\x30\xb8\x30\xa7\x30\xaf\x30\xc8\x30\x6e\x30\xd6\x53\x97\x5f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"オブジェクトの取得に失敗しました\n" @*/ ) ;
+		DXST_LOGFILE_ERRCODE_ADDUTF16LE( DX_ERRORCODE_WIN_FAILED_CREATE_DIRECTDRAW7, "\xaa\x30\xd6\x30\xb8\x30\xa7\x30\xaf\x30\xc8\x30\x6e\x30\xd6\x53\x97\x5f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"?I?u?W?F?N?g?????g??????hs????????\n" @*/ ) ;
 		return -1 ;
 	}
 
-	// 協調レベルを適当にセット
+	// ???f????x?????gK?g????Z?b?g
 	GAPIWin.DirectDraw7Object->SetCooperativeLevel( NS_GetMainWindowHandle(), ( DWORD )( D_DDSCL_NORMAL | ( WinData.UseFPUPreserve ? D_DDSCL_FPUPRESERVE : 0 ) ) ) ;
 
-	// Aero を無効にする処理
+	// Aero ????????????????
 	if( GRAWIN.Setting.DisableAeroFlag == 2 )
 	{
-		// DWM を無効にする
+		// DWM ????????????
 		SetEnableAero( FALSE ) ;
 #if 0
 		D_DDSURFACEDESC2 ddsd ;
@@ -109,17 +111,17 @@ extern int DirectDraw7_Create( void )
 		HDC prmdc ;
 		HRESULT hr ;
 
-		//  作成パラメータのセット	
+		//  ?????p??????[?^???Z?b?g	
 		_MEMSET( &ddsd, 0, sizeof( ddsd ) ) ; 
 		ddsd.dwSize				= sizeof( ddsd ) ;
 		ddsd.dwFlags			= D_DDSD_CAPS ;	
 		ddsd.ddsCaps.dwCaps		= D_DDSCAPS_PRIMARYSURFACE | D_DDSCAPS_3DDEVICE ;
 
-		// プライマリサーフェスの作成
+		// ?v????C?}???T?[?t?F?X??????
 		hr = GAPIWin.DirectDraw7Object->CreateSurface( &ddsd, &prmsuf, NULL ) ;
 		if( hr == D_DD_OK )
 		{
-			// GetDC をして Aero 無効
+			// GetDC ?????? Aero ????
 			hr = prmsuf->GetDC( &prmdc ) ;
 			if( hr == D_DD_OK )
 			{
@@ -132,7 +134,7 @@ extern int DirectDraw7_Create( void )
 #endif
 	}
 
-	// 終了
+	// ?I??
 	return 0 ;
 }
 
@@ -144,7 +146,7 @@ extern int DirectDraw7_Release( void )
 		GAPIWin.DirectDraw7Object = NULL ;
 	}
 
-	// 終了
+	// ?I??
 	return 0 ;
 }
 
@@ -177,11 +179,11 @@ extern int DirectDraw7_GetVideoMemorySize( DWORD *TotalSize, DWORD *FreeSize )
 		*FreeSize  = ( int )FreeMem ;
 	}
 
-	// 終了
+	// ?I??
 	return 0 ;
 }
 
-// ＶＳＹＮＣの前にSleepする時間を取得する
+// ?u?r?x?m?b???eO??Sleep?????????????g?????
 extern void DirectDraw7_WaitVSyncInitialize( void )
 {
 	GAPIWin.DirectDraw7_VSyncWaitTime = -1 ;
@@ -237,7 +239,7 @@ extern void DirectDraw7_WaitVSyncInitialize( void )
 //		}
 	}
 
-	// １フレーム待つ
+	// ?P?t???[???e???
 	DirectDraw7_LocalWaitVSync() ;
 }
 
@@ -253,7 +255,7 @@ extern void DirectDraw7_LocalWaitVSync( void )
 
 	SETUP_WIN_API
 
-	// 前回ＶＳＹＮＣ待ちをしてから最低限待つ時間が過ぎているかどうかで処理を分岐
+	// ?eO????u?r?x?m?b?e????????????????f????e????????????????????????????????????????
 	WaitTime = GAPIWin.DirectDraw7_VSyncWaitTime != -1 ? ( ULONGLONG )GAPIWin.DirectDraw7_VSyncWaitTime - ConvMilliSecondsToSysPerformanceCount( 3 ) : ConvMilliSecondsToSysPerformanceCount( 4 ) ;
 	if( NS_GetNowSysPerformanceCount() - GAPIWin.DirectDraw7_VSyncTime < WaitTime )
 	{
@@ -277,7 +279,7 @@ extern int DirectDraw7_WaitVSync( int SyncNum )
 	int i ;
 	BOOL vsync ;
 
-	// SyncNum が 1 の場合は ProcessMessage を呼ばない
+	// SyncNum ?? 1 ????????? ProcessMessage ??????????
 	if( SyncNum == 1 )
 	{
 		vsync = TRUE ;
@@ -328,7 +330,7 @@ extern int DirectDraw7_WaitVSync( int SyncNum )
 		}
 	}
 
-	// 終了
+	// ?I??
 	return 0 ;
 }
 
@@ -1659,7 +1661,7 @@ extern void Direct3D11_DumpObject( void )
 {
 	int TotalNum ;
 
-	DXST_LOGFILE_ADDUTF16LE( "\x44\x00\x69\x00\x72\x00\x65\x00\x63\x00\x74\x00\x33\x00\x44\x00\x31\x00\x31\x00\x20\x00\x6e\x30\xaa\x30\xd6\x30\xb8\x30\xa7\x30\xaf\x30\xc8\x30\x70\x65\x92\x30\xfa\x51\x9b\x52\x0a\x00\x00"/*@ L"Direct3D11 のオブジェクト数を出力\n" @*/ ) ;
+	DXST_LOGFILE_ADDUTF16LE( "\x44\x00\x69\x00\x72\x00\x65\x00\x63\x00\x74\x00\x33\x00\x44\x00\x31\x00\x31\x00\x20\x00\x6e\x30\xaa\x30\xd6\x30\xb8\x30\xa7\x30\xaf\x30\xc8\x30\x70\x65\x92\x30\xfa\x51\x9b\x52\x0a\x00\x00"/*@ L"Direct3D11 ???I?u?W?F?N?g??h???o??\n" @*/ ) ;
 
 	TotalNum = 0 ;
 
@@ -1747,7 +1749,7 @@ extern void Direct3D11_DumpObject( void )
 		DXST_LOGFILEFMT_ADDW(( L"ID3D11SamplerState : %d", GAPIWin.D3D11SamplerStateNum )) ;
 	}
 
-	DXST_LOGFILEFMT_ADDUTF16LE(( "\x44\x00\x69\x00\x72\x00\x65\x00\x63\x00\x74\x00\x33\x00\x44\x00\x31\x00\x31\x00\x20\x00\x6e\x30\xaa\x30\xd6\x30\xb8\x30\xa7\x30\xaf\x30\xc8\x30\x08\x54\x08\x8a\x70\x65\x20\x00\x3a\x00\x20\x00\x25\x00\x64\x00\x00"/*@ L"Direct3D11 のオブジェクト合計数 : %d" @*/, TotalNum )) ;
+	DXST_LOGFILEFMT_ADDUTF16LE(( "\x44\x00\x69\x00\x72\x00\x65\x00\x63\x00\x74\x00\x33\x00\x44\x00\x31\x00\x31\x00\x20\x00\x6e\x30\xaa\x30\xd6\x30\xb8\x30\xa7\x30\xaf\x30\xc8\x30\x08\x54\x08\x8a\x70\x65\x20\x00\x3a\x00\x20\x00\x25\x00\x64\x00\x00"/*@ L"Direct3D11 ???I?u?W?F?N?g????v??h : %d" @*/, TotalNum )) ;
 }
 
 
@@ -1762,10 +1764,10 @@ extern int DXGI_LoadDLL( int OutputLog )
 {
 	if( OutputLog )
 	{
-		DXST_LOGFILE_ADDUTF16LE( "\x64\x00\x78\x00\x67\x00\x69\x00\x2e\x00\x64\x00\x6c\x00\x6c\x00\x20\x00\x6e\x30\xad\x8a\x7f\x30\xbc\x8f\x7f\x30\x2e\x00\x2e\x00\x2e\x00\x2e\x00\x20\x00\x00"/*@ L"dxgi.dll の読み込み.... " @*/ ) ;
+		DXST_LOGFILE_ADDUTF16LE( "\x64\x00\x78\x00\x67\x00\x69\x00\x2e\x00\x64\x00\x6c\x00\x6c\x00\x20\x00\x6e\x30\xad\x8a\x7f\x30\xbc\x8f\x7f\x30\x2e\x00\x2e\x00\x2e\x00\x2e\x00\x20\x00\x00"/*@ L"dxgi.dll ???g???????.... " @*/ ) ;
 	}
 
-	// dxgi.dll の読み込み
+	// dxgi.dll ???g???????
 	GAPIWin.DXGIDLL = LoadLibraryW( L"dxgi.dll" ) ;
 	if( GAPIWin.DXGIDLL == NULL )
 	{
@@ -1774,7 +1776,7 @@ extern int DXGI_LoadDLL( int OutputLog )
 
 		if( OutputLog )
 		{
-			DXST_LOGFILE_ADDUTF16LE( "\x31\x59\x57\x65\x0a\x00\x00"/*@ L"失敗\n" @*/ ) ;
+			DXST_LOGFILE_ADDUTF16LE( "\x31\x59\x57\x65\x0a\x00\x00"/*@ L"???hs\n" @*/ ) ;
 		}
 
 		return -1 ;
@@ -1782,58 +1784,58 @@ extern int DXGI_LoadDLL( int OutputLog )
 
 	if( OutputLog )
 	{
-		DXST_LOGFILE_ADDUTF16LE( "\x10\x62\x9f\x52\x0a\x00\x00"/*@ L"成功\n" @*/ ) ;
+		DXST_LOGFILE_ADDUTF16LE( "\x10\x62\x9f\x52\x0a\x00\x00"/*@ L"?????\n" @*/ ) ;
 	}
 
-	// 正常終了
+	// ?????I??
 	return 0 ;
 }
 
 extern int DXGI_FreeDLL( int OutputLog )
 {
-	// dxgi.dll の解放
+	// dxgi.dll ???????
 	if( GAPIWin.DXGIDLL )
 	{
 		if( OutputLog )
 		{
-			DXST_LOGFILE_ADDUTF16LE( "\x64\x00\x78\x00\x67\x00\x69\x00\x2e\x00\x64\x00\x6c\x00\x6c\x00\x20\x00\x6e\x30\xe3\x89\x3e\x65\x20\x00\x31\x00\x0a\x00\x00"/*@ L"dxgi.dll の解放 1\n" @*/ ) ;
+			DXST_LOGFILE_ADDUTF16LE( "\x64\x00\x78\x00\x67\x00\x69\x00\x2e\x00\x64\x00\x6c\x00\x6c\x00\x20\x00\x6e\x30\xe3\x89\x3e\x65\x20\x00\x31\x00\x0a\x00\x00"/*@ L"dxgi.dll ??????? 1\n" @*/ ) ;
 		}
 		FreeLibrary( GAPIWin.DXGIDLL ) ;
 		GAPIWin.DXGIDLL = NULL ;
 	}
 
-	// 正常終了
+	// ?????I??
 	return 0 ;
 }
 
 extern int Direct3D11_LoadDLL( void )
 {
-	DXST_LOGFILE_ADDUTF16LE( "\x64\x00\x33\x00\x64\x00\x31\x00\x31\x00\x2e\x00\x64\x00\x6c\x00\x6c\x00\x20\x00\x6e\x30\xad\x8a\x7f\x30\xbc\x8f\x7f\x30\x2e\x00\x2e\x00\x2e\x00\x2e\x00\x20\x00\x00"/*@ L"d3d11.dll の読み込み.... " @*/ ) ;
+	DXST_LOGFILE_ADDUTF16LE( "\x64\x00\x33\x00\x64\x00\x31\x00\x31\x00\x2e\x00\x64\x00\x6c\x00\x6c\x00\x20\x00\x6e\x30\xad\x8a\x7f\x30\xbc\x8f\x7f\x30\x2e\x00\x2e\x00\x2e\x00\x2e\x00\x20\x00\x00"/*@ L"d3d11.dll ???g???????.... " @*/ ) ;
 
-	// Direct3D11.DLL の読み込み
+	// Direct3D11.DLL ???g???????
 	GAPIWin.Direct3D11DLL = LoadLibraryW( L"d3d11.dll" ) ;
 	if( GAPIWin.Direct3D11DLL == NULL )
 	{
-		return DXST_LOGFILE_ADDUTF16LE( "\x31\x59\x57\x65\x0a\x00\x00"/*@ L"失敗\n" @*/ ) ;
+		return DXST_LOGFILE_ADDUTF16LE( "\x31\x59\x57\x65\x0a\x00\x00"/*@ L"???hs\n" @*/ ) ;
 	}
 
-	DXST_LOGFILE_ADDUTF16LE( "\x10\x62\x9f\x52\x0a\x00\x00"/*@ L"成功\n" @*/ ) ;
+	DXST_LOGFILE_ADDUTF16LE( "\x10\x62\x9f\x52\x0a\x00\x00"/*@ L"?????\n" @*/ ) ;
 
-	// 正常終了
+	// ?????I??
 	return 0 ;
 }
 
 extern int Direct3D11_FreeDLL( void )
 {
-	// d3d11.dll の解放
+	// d3d11.dll ???????
 	if( GAPIWin.Direct3D11DLL )
 	{
-		DXST_LOGFILE_ADDUTF16LE( "\x64\x00\x33\x00\x64\x00\x31\x00\x31\x00\x2e\x00\x64\x00\x6c\x00\x6c\x00\x20\x00\x6e\x30\xe3\x89\x3e\x65\x20\x00\x31\x00\x0a\x00\x00"/*@ L"d3d11.dll の解放 1\n" @*/ ) ;
+		DXST_LOGFILE_ADDUTF16LE( "\x64\x00\x33\x00\x64\x00\x31\x00\x31\x00\x2e\x00\x64\x00\x6c\x00\x6c\x00\x20\x00\x6e\x30\xe3\x89\x3e\x65\x20\x00\x31\x00\x0a\x00\x00"/*@ L"d3d11.dll ??????? 1\n" @*/ ) ;
 		FreeLibrary( GAPIWin.Direct3D11DLL ) ;
 		GAPIWin.Direct3D11DLL = NULL ;
 	}
 
-	// 正常終了
+	// ?????I??
 	return 0 ;
 }
 
@@ -1850,7 +1852,7 @@ extern int DXGIFactory_Create( int OutputLog )
 
 	if( OutputLog )
 	{
-		DXST_LOGFILE_ADDUTF16LE( "\x41\x00\x50\x00\x49\x00\x20\x00\x43\x00\x72\x00\x65\x00\x61\x00\x74\x00\x65\x00\x44\x00\x58\x00\x47\x00\x49\x00\x46\x00\x61\x00\x63\x00\x74\x00\x6f\x00\x72\x00\x79\x00\x32\x00\x20\x00\x6e\x30\xa2\x30\xc9\x30\xec\x30\xb9\x30\x92\x30\xd6\x53\x97\x5f\x57\x30\x7e\x30\x59\x30\x2e\x00\x2e\x00\x2e\x00\x2e\x00\x20\x00\x00"/*@ L"API CreateDXGIFactory2 のアドレスを取得します.... " @*/ ) ;
+		DXST_LOGFILE_ADDUTF16LE( "\x41\x00\x50\x00\x49\x00\x20\x00\x43\x00\x72\x00\x65\x00\x61\x00\x74\x00\x65\x00\x44\x00\x58\x00\x47\x00\x49\x00\x46\x00\x61\x00\x63\x00\x74\x00\x6f\x00\x72\x00\x79\x00\x32\x00\x20\x00\x6e\x30\xa2\x30\xc9\x30\xec\x30\xb9\x30\x92\x30\xd6\x53\x97\x5f\x57\x30\x7e\x30\x59\x30\x2e\x00\x2e\x00\x2e\x00\x2e\x00\x20\x00\x00"/*@ L"API CreateDXGIFactory2 ???A?h???X?????g???????.... " @*/ ) ;
 	}
 
 	D_CreateDXGIFactory2Function = ( LPD_CREATEDXGIFACTORY2 )GetProcAddress( GAPIWin.DXGIDLL, "CreateDXGIFactory2" ) ;
@@ -1858,31 +1860,31 @@ extern int DXGIFactory_Create( int OutputLog )
 	{
 		if( OutputLog )
 		{
-			DXST_LOGFILE_ADDUTF16LE( "\x31\x59\x57\x65\x0a\x00\x00"/*@ L"失敗\n" @*/ ) ;
+			DXST_LOGFILE_ADDUTF16LE( "\x31\x59\x57\x65\x0a\x00\x00"/*@ L"???hs\n" @*/ ) ;
 		}
 	}
 	else
 	{
 		if( OutputLog )
 		{
-			DXST_LOGFILE_ADDUTF16LE( "\x10\x62\x9f\x52\x0a\x00\x00"/*@ L"成功\n" @*/ ) ;
+			DXST_LOGFILE_ADDUTF16LE( "\x10\x62\x9f\x52\x0a\x00\x00"/*@ L"?????\n" @*/ ) ;
 
-			DXST_LOGFILE_ADDUTF16LE( "\x49\x00\x44\x00\x58\x00\x47\x00\x49\x00\x46\x00\x61\x00\x63\x00\x74\x00\x6f\x00\x72\x00\x79\x00\x32\x00\x20\x00\x92\x30\x5c\x4f\x10\x62\x57\x30\x7e\x30\x59\x30\x2e\x00\x2e\x00\x2e\x00\x2e\x00\x20\x00\x00"/*@ L"IDXGIFactory2 を作成します.... " @*/ ) ;
+			DXST_LOGFILE_ADDUTF16LE( "\x49\x00\x44\x00\x58\x00\x47\x00\x49\x00\x46\x00\x61\x00\x63\x00\x74\x00\x6f\x00\x72\x00\x79\x00\x32\x00\x20\x00\x92\x30\x5c\x4f\x10\x62\x57\x30\x7e\x30\x59\x30\x2e\x00\x2e\x00\x2e\x00\x2e\x00\x20\x00\x00"/*@ L"IDXGIFactory2 ????????????.... " @*/ ) ;
 		}
 
-		// IDXGIFactory2 の作成
+		// IDXGIFactory2 ??????
 		if( FAILED( D_CreateDXGIFactory2Function( 0, IID_IDXGIFACTORY2, ( void ** )&GAPIWin.DXGIFactory2Object ) ) )
 		{
 			if( OutputLog )
 			{
-				DXST_LOGFILE_ADDUTF16LE( "\x31\x59\x57\x65\x0a\x00\x00"/*@ L"失敗\n" @*/ ) ;
+				DXST_LOGFILE_ADDUTF16LE( "\x31\x59\x57\x65\x0a\x00\x00"/*@ L"???hs\n" @*/ ) ;
 			}
 		}
 		else
 		{
 			if( OutputLog )
 			{
-				DXST_LOGFILE_ADDUTF16LE( "\x10\x62\x9f\x52\x0a\x00\x00"/*@ L"成功\n" @*/ ) ;
+				DXST_LOGFILE_ADDUTF16LE( "\x10\x62\x9f\x52\x0a\x00\x00"/*@ L"?????\n" @*/ ) ;
 			}
 
 			GAPIWin.DXGIFactoryObject = GAPIWin.DXGIFactory2Object ;
@@ -1893,7 +1895,7 @@ extern int DXGIFactory_Create( int OutputLog )
 	{
 		if( OutputLog )
 		{
-			DXST_LOGFILE_ADDUTF16LE( "\x41\x00\x50\x00\x49\x00\x20\x00\x43\x00\x72\x00\x65\x00\x61\x00\x74\x00\x65\x00\x44\x00\x58\x00\x47\x00\x49\x00\x46\x00\x61\x00\x63\x00\x74\x00\x6f\x00\x72\x00\x79\x00\x31\x00\x20\x00\x6e\x30\xa2\x30\xc9\x30\xec\x30\xb9\x30\x92\x30\xd6\x53\x97\x5f\x57\x30\x7e\x30\x59\x30\x2e\x00\x2e\x00\x2e\x00\x2e\x00\x20\x00\x00"/*@ L"API CreateDXGIFactory1 のアドレスを取得します.... " @*/ ) ;
+			DXST_LOGFILE_ADDUTF16LE( "\x41\x00\x50\x00\x49\x00\x20\x00\x43\x00\x72\x00\x65\x00\x61\x00\x74\x00\x65\x00\x44\x00\x58\x00\x47\x00\x49\x00\x46\x00\x61\x00\x63\x00\x74\x00\x6f\x00\x72\x00\x79\x00\x31\x00\x20\x00\x6e\x30\xa2\x30\xc9\x30\xec\x30\xb9\x30\x92\x30\xd6\x53\x97\x5f\x57\x30\x7e\x30\x59\x30\x2e\x00\x2e\x00\x2e\x00\x2e\x00\x20\x00\x00"/*@ L"API CreateDXGIFactory1 ???A?h???X?????g???????.... " @*/ ) ;
 		}
 
 		D_CreateDXGIFactory1Function = ( LPD_CREATEDXGIFACTORY1 )GetProcAddress( GAPIWin.DXGIDLL, "CreateDXGIFactory1" ) ;
@@ -1901,31 +1903,31 @@ extern int DXGIFactory_Create( int OutputLog )
 		{
 			if( OutputLog )
 			{
-				DXST_LOGFILE_ADDUTF16LE( "\x31\x59\x57\x65\x0a\x00\x00"/*@ L"失敗\n" @*/ ) ;
+				DXST_LOGFILE_ADDUTF16LE( "\x31\x59\x57\x65\x0a\x00\x00"/*@ L"???hs\n" @*/ ) ;
 			}
 		}
 		else
 		{
 			if( OutputLog )
 			{
-				DXST_LOGFILE_ADDUTF16LE( "\x10\x62\x9f\x52\x0a\x00\x00"/*@ L"成功\n" @*/ ) ;
+				DXST_LOGFILE_ADDUTF16LE( "\x10\x62\x9f\x52\x0a\x00\x00"/*@ L"?????\n" @*/ ) ;
 
-				DXST_LOGFILE_ADDUTF16LE( "\x49\x00\x44\x00\x58\x00\x47\x00\x49\x00\x46\x00\x61\x00\x63\x00\x74\x00\x6f\x00\x72\x00\x79\x00\x31\x00\x20\x00\x92\x30\x5c\x4f\x10\x62\x57\x30\x7e\x30\x59\x30\x2e\x00\x2e\x00\x2e\x00\x2e\x00\x20\x00\x00"/*@ L"IDXGIFactory1 を作成します.... " @*/ ) ;
+				DXST_LOGFILE_ADDUTF16LE( "\x49\x00\x44\x00\x58\x00\x47\x00\x49\x00\x46\x00\x61\x00\x63\x00\x74\x00\x6f\x00\x72\x00\x79\x00\x31\x00\x20\x00\x92\x30\x5c\x4f\x10\x62\x57\x30\x7e\x30\x59\x30\x2e\x00\x2e\x00\x2e\x00\x2e\x00\x20\x00\x00"/*@ L"IDXGIFactory1 ????????????.... " @*/ ) ;
 			}
 
-			// IDXGIFactory1 の作成
+			// IDXGIFactory1 ??????
 			if( FAILED( D_CreateDXGIFactory1Function( IID_IDXGIFACTORY1, ( void ** )&GAPIWin.DXGIFactory1Object ) ) )
 			{
 				if( OutputLog )
 				{
-					DXST_LOGFILE_ADDUTF16LE( "\x31\x59\x57\x65\x0a\x00\x00"/*@ L"失敗\n" @*/ ) ;
+					DXST_LOGFILE_ADDUTF16LE( "\x31\x59\x57\x65\x0a\x00\x00"/*@ L"???hs\n" @*/ ) ;
 				}
 			}
 			else
 			{
 				if( OutputLog )
 				{
-					DXST_LOGFILE_ADDUTF16LE( "\x10\x62\x9f\x52\x0a\x00\x00"/*@ L"成功\n" @*/ ) ;
+					DXST_LOGFILE_ADDUTF16LE( "\x10\x62\x9f\x52\x0a\x00\x00"/*@ L"?????\n" @*/ ) ;
 				}
 
 				GAPIWin.DXGIFactoryObject = GAPIWin.DXGIFactory1Object ;
@@ -1937,7 +1939,7 @@ extern int DXGIFactory_Create( int OutputLog )
 	{
 		if( OutputLog )
 		{
-			DXST_LOGFILE_ADDUTF16LE( "\x41\x00\x50\x00\x49\x00\x20\x00\x43\x00\x72\x00\x65\x00\x61\x00\x74\x00\x65\x00\x44\x00\x58\x00\x47\x00\x49\x00\x46\x00\x61\x00\x63\x00\x74\x00\x6f\x00\x72\x00\x79\x00\x20\x00\x6e\x30\xa2\x30\xc9\x30\xec\x30\xb9\x30\x92\x30\xd6\x53\x97\x5f\x57\x30\x7e\x30\x59\x30\x2e\x00\x2e\x00\x2e\x00\x2e\x00\x20\x00\x00"/*@ L"API CreateDXGIFactory のアドレスを取得します.... " @*/ ) ;
+			DXST_LOGFILE_ADDUTF16LE( "\x41\x00\x50\x00\x49\x00\x20\x00\x43\x00\x72\x00\x65\x00\x61\x00\x74\x00\x65\x00\x44\x00\x58\x00\x47\x00\x49\x00\x46\x00\x61\x00\x63\x00\x74\x00\x6f\x00\x72\x00\x79\x00\x20\x00\x6e\x30\xa2\x30\xc9\x30\xec\x30\xb9\x30\x92\x30\xd6\x53\x97\x5f\x57\x30\x7e\x30\x59\x30\x2e\x00\x2e\x00\x2e\x00\x2e\x00\x20\x00\x00"/*@ L"API CreateDXGIFactory ???A?h???X?????g???????.... " @*/ ) ;
 		}
 
 		D_CreateDXGIFactoryFunction  = ( LPD_CREATEDXGIFACTORY )GetProcAddress( GAPIWin.DXGIDLL, "CreateDXGIFactory" ) ;
@@ -1945,7 +1947,7 @@ extern int DXGIFactory_Create( int OutputLog )
 		{
 			if( OutputLog )
 			{
-				DXST_LOGFILE_ADDUTF16LE( "\x31\x59\x57\x65\x0a\x00\x00"/*@ L"失敗\n" @*/ ) ;
+				DXST_LOGFILE_ADDUTF16LE( "\x31\x59\x57\x65\x0a\x00\x00"/*@ L"???hs\n" @*/ ) ;
 			}
 
 			return -1 ;
@@ -1953,24 +1955,24 @@ extern int DXGIFactory_Create( int OutputLog )
 
 		if( OutputLog )
 		{
-			DXST_LOGFILE_ADDUTF16LE( "\x10\x62\x9f\x52\x0a\x00\x00"/*@ L"成功\n" @*/ ) ;
+			DXST_LOGFILE_ADDUTF16LE( "\x10\x62\x9f\x52\x0a\x00\x00"/*@ L"?????\n" @*/ ) ;
 
-			DXST_LOGFILE_ADDUTF16LE( "\x49\x00\x44\x00\x58\x00\x47\x00\x49\x00\x46\x00\x61\x00\x63\x00\x74\x00\x6f\x00\x72\x00\x79\x00\x20\x00\x92\x30\x5c\x4f\x10\x62\x57\x30\x7e\x30\x59\x30\x2e\x00\x2e\x00\x2e\x00\x2e\x00\x20\x00\x00"/*@ L"IDXGIFactory を作成します.... " @*/ ) ;
+			DXST_LOGFILE_ADDUTF16LE( "\x49\x00\x44\x00\x58\x00\x47\x00\x49\x00\x46\x00\x61\x00\x63\x00\x74\x00\x6f\x00\x72\x00\x79\x00\x20\x00\x92\x30\x5c\x4f\x10\x62\x57\x30\x7e\x30\x59\x30\x2e\x00\x2e\x00\x2e\x00\x2e\x00\x20\x00\x00"/*@ L"IDXGIFactory ????????????.... " @*/ ) ;
 		}
 
-		// IDXGIFactory の作成
+		// IDXGIFactory ??????
 		if( FAILED( D_CreateDXGIFactoryFunction( IID_IDXGIFACTORY, ( void ** )&GAPIWin.DXGIFactoryObject ) ) )
 		{
 			if( OutputLog )
 			{
-				DXST_LOGFILE_ADDUTF16LE( "\x31\x59\x57\x65\x0a\x00\x00"/*@ L"失敗\n" @*/ ) ;
+				DXST_LOGFILE_ADDUTF16LE( "\x31\x59\x57\x65\x0a\x00\x00"/*@ L"???hs\n" @*/ ) ;
 			}
 			return -1 ;
 		}
 
 		if( OutputLog )
 		{
-			DXST_LOGFILE_ADDUTF16LE( "\x10\x62\x9f\x52\x0a\x00\x00"/*@ L"成功\n" @*/ ) ;
+			DXST_LOGFILE_ADDUTF16LE( "\x10\x62\x9f\x52\x0a\x00\x00"/*@ L"?????\n" @*/ ) ;
 		}
 	}
 
@@ -1978,26 +1980,26 @@ extern int DXGIFactory_Create( int OutputLog )
 	{
 		if( OutputLog )
 		{
-			DXST_LOGFILE_ADDUTF16LE( "\x41\x00\x50\x00\x49\x00\x20\x00\x43\x00\x72\x00\x65\x00\x61\x00\x74\x00\x65\x00\x44\x00\x58\x00\x47\x00\x49\x00\x46\x00\x61\x00\x63\x00\x74\x00\x6f\x00\x72\x00\x79\x00\x36\x00\x20\x00\x6e\x30\xa2\x30\xc9\x30\xec\x30\xb9\x30\x92\x30\xd6\x53\x97\x5f\x57\x30\x7e\x30\x59\x30\x2e\x00\x2e\x00\x2e\x00\x2e\x00\x20\x00\x00"/*@ L"API CreateDXGIFactory6 のアドレスを取得します.... " @*/ ) ;
+			DXST_LOGFILE_ADDUTF16LE( "\x41\x00\x50\x00\x49\x00\x20\x00\x43\x00\x72\x00\x65\x00\x61\x00\x74\x00\x65\x00\x44\x00\x58\x00\x47\x00\x49\x00\x46\x00\x61\x00\x63\x00\x74\x00\x6f\x00\x72\x00\x79\x00\x36\x00\x20\x00\x6e\x30\xa2\x30\xc9\x30\xec\x30\xb9\x30\x92\x30\xd6\x53\x97\x5f\x57\x30\x7e\x30\x59\x30\x2e\x00\x2e\x00\x2e\x00\x2e\x00\x20\x00\x00"/*@ L"API CreateDXGIFactory6 ???A?h???X?????g???????.... " @*/ ) ;
 		}
 
 		if( FAILED( GAPIWin.DXGIFactoryObject->QueryInterface( IID_IDXGIFACTORY6, ( void ** )&GAPIWin.DXGIFactory6Object ) ) )
 		{
 			if( OutputLog )
 			{
-				DXST_LOGFILE_ADDUTF16LE( "\x31\x59\x57\x65\x0a\x00\x00"/*@ L"失敗\n" @*/ ) ;
+				DXST_LOGFILE_ADDUTF16LE( "\x31\x59\x57\x65\x0a\x00\x00"/*@ L"???hs\n" @*/ ) ;
 			}
 		}
 		else
 		{
 			if( OutputLog )
 			{
-				DXST_LOGFILE_ADDUTF16LE( "\x10\x62\x9f\x52\x0a\x00\x00"/*@ L"成功\n" @*/ ) ;
+				DXST_LOGFILE_ADDUTF16LE( "\x10\x62\x9f\x52\x0a\x00\x00"/*@ L"?????\n" @*/ ) ;
 			}
 		}
 	}
 
-	// 正常終了
+	// ?????I??
 	return 0 ;
 }
 
@@ -2017,7 +2019,7 @@ extern int DXGIFactory_Release( void )
 		GAPIWin.DXGIFactory6Object = NULL ;
 	}
 
-	// 正常修了
+	// ?????C??
 	return 0 ;
 }
 
@@ -2123,28 +2125,28 @@ extern int D3D11_CreateDevice( void )
 		return -1 ;
 	}
 
-	// Aero の有効・無効を設定する
+	// Aero ???L???E?????????f?????
 	if( NS_GetWindowModeFlag() == TRUE || NS_GetUseFullScreenResolutionMode() == DX_FSRESOLUTIONMODE_BORDERLESS_WINDOW )
 	{
 		SetEnableAero( GRAWIN.Setting.DisableAeroFlag == 2 ? FALSE : TRUE ) ;
 	}
 
 
-	DXST_LOGFILE_ADDUTF16LE( "\x41\x00\x50\x00\x49\x00\x20\x00\x44\x00\x33\x00\x44\x00\x31\x00\x31\x00\x43\x00\x72\x00\x65\x00\x61\x00\x74\x00\x65\x00\x44\x00\x65\x00\x76\x00\x69\x00\x63\x00\x65\x00\x20\x00\x6e\x30\xa2\x30\xc9\x30\xec\x30\xb9\x30\x92\x30\xd6\x53\x97\x5f\x57\x30\x7e\x30\x59\x30\x2e\x00\x2e\x00\x2e\x00\x2e\x00\x20\x00\x00"/*@ L"API D3D11CreateDevice のアドレスを取得します.... " @*/ ) ;
+	DXST_LOGFILE_ADDUTF16LE( "\x41\x00\x50\x00\x49\x00\x20\x00\x44\x00\x33\x00\x44\x00\x31\x00\x31\x00\x43\x00\x72\x00\x65\x00\x61\x00\x74\x00\x65\x00\x44\x00\x65\x00\x76\x00\x69\x00\x63\x00\x65\x00\x20\x00\x6e\x30\xa2\x30\xc9\x30\xec\x30\xb9\x30\x92\x30\xd6\x53\x97\x5f\x57\x30\x7e\x30\x59\x30\x2e\x00\x2e\x00\x2e\x00\x2e\x00\x20\x00\x00"/*@ L"API D3D11CreateDevice ???A?h???X?????g???????.... " @*/ ) ;
 
 	D_D3D11CreateDeviceFunction = ( LPD_D3D11CREATEDEVICE )GetProcAddress( GAPIWin.Direct3D11DLL, "D3D11CreateDevice" ) ;
 	if( D_D3D11CreateDeviceFunction == NULL )
 	{
-		DXST_LOGFILE_ADDUTF16LE( "\x31\x59\x57\x65\x0a\x00\x00"/*@ L"失敗\n" @*/ ) ;
+		DXST_LOGFILE_ADDUTF16LE( "\x31\x59\x57\x65\x0a\x00\x00"/*@ L"???hs\n" @*/ ) ;
 		return -1 ;
 	}
 
-	DXST_LOGFILE_ADDUTF16LE( "\x10\x62\x9f\x52\x0a\x00\x00"/*@ L"成功\n" @*/ ) ;
+	DXST_LOGFILE_ADDUTF16LE( "\x10\x62\x9f\x52\x0a\x00\x00"/*@ L"?????\n" @*/ ) ;
 
 
-	DXST_LOGFILE_ADDUTF16LE( "\x49\x00\x44\x00\x58\x00\x47\x00\x49\x00\x41\x00\x64\x00\x61\x00\x70\x00\x74\x00\x65\x00\x72\x00\x20\x00\x92\x30\xd6\x53\x97\x5f\x57\x30\x7e\x30\x59\x30\x2e\x00\x2e\x00\x2e\x00\x2e\x00\x20\x00\x00"/*@ L"IDXGIAdapter を取得します.... " @*/ ) ;
+	DXST_LOGFILE_ADDUTF16LE( "\x49\x00\x44\x00\x58\x00\x47\x00\x49\x00\x41\x00\x64\x00\x61\x00\x70\x00\x74\x00\x65\x00\x72\x00\x20\x00\x92\x30\xd6\x53\x97\x5f\x57\x30\x7e\x30\x59\x30\x2e\x00\x2e\x00\x2e\x00\x2e\x00\x20\x00\x00"/*@ L"IDXGIAdapter ?????g???????.... " @*/ ) ;
 
-	// ウィンドウの作成位置がアダプターの出力範囲から外れていたら、ウィンドウの作成位置に適したアダプターを出力先にする
+	// ?E?B??g?h?E?????????fu???A?_?v?^?[???o???h????????O???????????A?E?B??g?h?E?????????fu???gK?????A?_?v?^?[???o??????????
 	for( i = 0 ; i < GD3D11.Adapter.Info[ GraphicsHardDataDirect3D11.Setting.UseDXGIAdapterIndex ].OutputNum ; i ++ )
 	{
 		D_DXGI_OUTPUT_DESC *OutputDesc = &GD3D11.Adapter.Info[ GraphicsHardDataDirect3D11.Setting.UseDXGIAdapterIndex ].OutputDesc[ i ] ;
@@ -2158,7 +2160,7 @@ extern int D3D11_CreateDevice( void )
 	}
 	if( i == GD3D11.Adapter.Info[ GraphicsHardDataDirect3D11.Setting.UseDXGIAdapterIndex ].OutputNum )
 	{
-		// メインウィンドウがすっぽり収まるアダプタを探す
+		// ???C??g?E?B??g?h?E?????????????????A?_?v?^???fT??
 		for( j = 0 ; j < GD3D11.Adapter.InfoNum ; j ++ )
 		{
 			for( i = 0 ; i < GD3D11.Adapter.Info[ j ].OutputNum ; i ++ )
@@ -2180,7 +2182,7 @@ extern int D3D11_CreateDevice( void )
 		}
 		if( j == GD3D11.Adapter.InfoNum )
 		{
-			// メインウィンドウがすっぽり収まるアダプタがなかった場合は一番収まっている面積が多いアダプタを探す
+			// ???C??g?E?B??g?h?E?????????????????A?_?v?^????????????????????h????????????????????e????A?_?v?^???fT??
 			RECT WindowRect ;
 			int WindowPixels ;
 			int MaxPixels = 0 ;
@@ -2226,12 +2228,12 @@ extern int D3D11_CreateDevice( void )
 		}
 	}
 
-	// IDXGIAdapter の取得
+	// IDXGIAdapter ?????g?
 	if( GAPIWin.DXGIFactory6Object != NULL )
 	{
 		if( FAILED( GAPIWin.DXGIFactory6Object->EnumAdapterByGpuPreference( GD3D11.Setting.UseDXGIAdapterIndex, D_DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE, IID_IDXGIADAPTER, ( void ** )&GAPIWin.DXGIAdapterObject ) ) )
 		{
-			DXST_LOGFILE_ADDUTF16LE( "\x31\x59\x57\x65\x0a\x00\x00"/*@ L"失敗\n" @*/ ) ;
+			DXST_LOGFILE_ADDUTF16LE( "\x31\x59\x57\x65\x0a\x00\x00"/*@ L"???hs\n" @*/ ) ;
 			goto ERR ;
 		}
 	}
@@ -2239,74 +2241,74 @@ extern int D3D11_CreateDevice( void )
 	{
 		if( FAILED( GAPIWin.DXGIFactoryObject->EnumAdapters( GD3D11.Setting.UseDXGIAdapterIndex, &GAPIWin.DXGIAdapterObject ) ) )
 		{
-			DXST_LOGFILE_ADDUTF16LE( "\x31\x59\x57\x65\x0a\x00\x00"/*@ L"失敗\n" @*/ ) ;
+			DXST_LOGFILE_ADDUTF16LE( "\x31\x59\x57\x65\x0a\x00\x00"/*@ L"???hs\n" @*/ ) ;
 			goto ERR ;
 		}
 	}
 
-	DXST_LOGFILE_ADDUTF16LE( "\x10\x62\x9f\x52\x0a\x00\x00"/*@ L"成功\n" @*/ ) ;
+	DXST_LOGFILE_ADDUTF16LE( "\x10\x62\x9f\x52\x0a\x00\x00"/*@ L"?????\n" @*/ ) ;
 
 	GAPIWin.DXGIAdapter1Object = NULL ;
 	if( GAPIWin.DXGIAdapterObject != NULL )
 	{
-		DXST_LOGFILE_ADDUTF16LE( "\x49\x00\x44\x00\x58\x00\x47\x00\x49\x00\x41\x00\x64\x00\x61\x00\x70\x00\x74\x00\x65\x00\x72\x00\x31\x00\x20\x00\x92\x30\xd6\x53\x97\x5f\x57\x30\x7e\x30\x59\x30\x2e\x00\x2e\x00\x2e\x00\x2e\x00\x20\x00\x00"/*@ L"IDXGIAdapter1 を取得します.... " @*/ ) ;
+		DXST_LOGFILE_ADDUTF16LE( "\x49\x00\x44\x00\x58\x00\x47\x00\x49\x00\x41\x00\x64\x00\x61\x00\x70\x00\x74\x00\x65\x00\x72\x00\x31\x00\x20\x00\x92\x30\xd6\x53\x97\x5f\x57\x30\x7e\x30\x59\x30\x2e\x00\x2e\x00\x2e\x00\x2e\x00\x20\x00\x00"/*@ L"IDXGIAdapter1 ?????g???????.... " @*/ ) ;
 
 		if( FAILED( GAPIWin.DXGIAdapterObject->QueryInterface( IID_IDXGIADAPTER1, ( void ** )&GAPIWin.DXGIAdapter1Object ) ) )
 		{
-			DXST_LOGFILE_ADDUTF16LE( "\x31\x59\x57\x65\x0a\x00\x00"/*@ L"失敗\n" @*/ ) ;
+			DXST_LOGFILE_ADDUTF16LE( "\x31\x59\x57\x65\x0a\x00\x00"/*@ L"???hs\n" @*/ ) ;
 		}
 		else
 		{
-			DXST_LOGFILE_ADDUTF16LE( "\x10\x62\x9f\x52\x0a\x00\x00"/*@ L"成功\n" @*/ ) ;
+			DXST_LOGFILE_ADDUTF16LE( "\x10\x62\x9f\x52\x0a\x00\x00"/*@ L"?????\n" @*/ ) ;
 		}
 	}
 
 	GAPIWin.DXGIAdapter2Object = NULL ;
 	if( GAPIWin.DXGIAdapter1Object != NULL )
 	{
-		DXST_LOGFILE_ADDUTF16LE( "\x49\x00\x44\x00\x58\x00\x47\x00\x49\x00\x41\x00\x64\x00\x61\x00\x70\x00\x74\x00\x65\x00\x72\x00\x32\x00\x20\x00\x92\x30\xd6\x53\x97\x5f\x57\x30\x7e\x30\x59\x30\x2e\x00\x2e\x00\x2e\x00\x2e\x00\x20\x00\x00"/*@ L"IDXGIAdapter2 を取得します.... " @*/ ) ;
+		DXST_LOGFILE_ADDUTF16LE( "\x49\x00\x44\x00\x58\x00\x47\x00\x49\x00\x41\x00\x64\x00\x61\x00\x70\x00\x74\x00\x65\x00\x72\x00\x32\x00\x20\x00\x92\x30\xd6\x53\x97\x5f\x57\x30\x7e\x30\x59\x30\x2e\x00\x2e\x00\x2e\x00\x2e\x00\x20\x00\x00"/*@ L"IDXGIAdapter2 ?????g???????.... " @*/ ) ;
 
 		if( FAILED( GAPIWin.DXGIAdapter1Object->QueryInterface( IID_IDXGIADAPTER2, ( void ** )&GAPIWin.DXGIAdapter2Object ) ) )
 		{
-			DXST_LOGFILE_ADDUTF16LE( "\x31\x59\x57\x65\x0a\x00\x00"/*@ L"失敗\n" @*/ ) ;
+			DXST_LOGFILE_ADDUTF16LE( "\x31\x59\x57\x65\x0a\x00\x00"/*@ L"???hs\n" @*/ ) ;
 		}
 		else
 		{
-			DXST_LOGFILE_ADDUTF16LE( "\x10\x62\x9f\x52\x0a\x00\x00"/*@ L"成功\n" @*/ ) ;
+			DXST_LOGFILE_ADDUTF16LE( "\x10\x62\x9f\x52\x0a\x00\x00"/*@ L"?????\n" @*/ ) ;
 		}
 	}
 
 	GAPIWin.DXGIAdapter3Object = NULL ;
 	if( GAPIWin.DXGIAdapter2Object != NULL )
 	{
-		DXST_LOGFILE_ADDUTF16LE( "\x49\x00\x44\x00\x58\x00\x47\x00\x49\x00\x41\x00\x64\x00\x61\x00\x70\x00\x74\x00\x65\x00\x72\x00\x33\x00\x20\x00\x92\x30\xd6\x53\x97\x5f\x57\x30\x7e\x30\x59\x30\x2e\x00\x2e\x00\x2e\x00\x2e\x00\x20\x00\x00"/*@ L"IDXGIAdapter3 を取得します.... " @*/ ) ;
+		DXST_LOGFILE_ADDUTF16LE( "\x49\x00\x44\x00\x58\x00\x47\x00\x49\x00\x41\x00\x64\x00\x61\x00\x70\x00\x74\x00\x65\x00\x72\x00\x33\x00\x20\x00\x92\x30\xd6\x53\x97\x5f\x57\x30\x7e\x30\x59\x30\x2e\x00\x2e\x00\x2e\x00\x2e\x00\x20\x00\x00"/*@ L"IDXGIAdapter3 ?????g???????.... " @*/ ) ;
 
 		if( FAILED( GAPIWin.DXGIAdapter2Object->QueryInterface( IID_IDXGIADAPTER3, ( void ** )&GAPIWin.DXGIAdapter3Object ) ) )
 		{
-			DXST_LOGFILE_ADDUTF16LE( "\x31\x59\x57\x65\x0a\x00\x00"/*@ L"失敗\n" @*/ ) ;
+			DXST_LOGFILE_ADDUTF16LE( "\x31\x59\x57\x65\x0a\x00\x00"/*@ L"???hs\n" @*/ ) ;
 		}
 		else
 		{
-			DXST_LOGFILE_ADDUTF16LE( "\x10\x62\x9f\x52\x0a\x00\x00"/*@ L"成功\n" @*/ ) ;
+			DXST_LOGFILE_ADDUTF16LE( "\x10\x62\x9f\x52\x0a\x00\x00"/*@ L"?????\n" @*/ ) ;
 		}
 	}
 
 	GAPIWin.DXGIAdapter4Object = NULL ;
 	if( GAPIWin.DXGIAdapter3Object != NULL )
 	{
-		DXST_LOGFILE_ADDUTF16LE( "\x49\x00\x44\x00\x58\x00\x47\x00\x49\x00\x41\x00\x64\x00\x61\x00\x70\x00\x74\x00\x65\x00\x72\x00\x34\x00\x20\x00\x92\x30\xd6\x53\x97\x5f\x57\x30\x7e\x30\x59\x30\x2e\x00\x2e\x00\x2e\x00\x2e\x00\x20\x00\x00"/*@ L"IDXGIAdapter4 を取得します.... " @*/ ) ;
+		DXST_LOGFILE_ADDUTF16LE( "\x49\x00\x44\x00\x58\x00\x47\x00\x49\x00\x41\x00\x64\x00\x61\x00\x70\x00\x74\x00\x65\x00\x72\x00\x34\x00\x20\x00\x92\x30\xd6\x53\x97\x5f\x57\x30\x7e\x30\x59\x30\x2e\x00\x2e\x00\x2e\x00\x2e\x00\x20\x00\x00"/*@ L"IDXGIAdapter4 ?????g???????.... " @*/ ) ;
 
 		if( FAILED( GAPIWin.DXGIAdapter3Object->QueryInterface( IID_IDXGIADAPTER4, ( void ** )&GAPIWin.DXGIAdapter4Object ) ) )
 		{
-			DXST_LOGFILE_ADDUTF16LE( "\x31\x59\x57\x65\x0a\x00\x00"/*@ L"失敗\n" @*/ ) ;
+			DXST_LOGFILE_ADDUTF16LE( "\x31\x59\x57\x65\x0a\x00\x00"/*@ L"???hs\n" @*/ ) ;
 		}
 		else
 		{
-			DXST_LOGFILE_ADDUTF16LE( "\x10\x62\x9f\x52\x0a\x00\x00"/*@ L"成功\n" @*/ ) ;
+			DXST_LOGFILE_ADDUTF16LE( "\x10\x62\x9f\x52\x0a\x00\x00"/*@ L"?????\n" @*/ ) ;
 		}
 	}
 
-	// D3D11Device の作成
+	// D3D11Device ??????
 	{
 		static int FeatureLevelTable[] = 
 		{
@@ -2334,7 +2336,7 @@ extern int D3D11_CreateDevice( void )
 				GD3D11.Setting.UseMinFeatureLevelDirect3D11 = DX_DIRECT3D_11_FEATURE_LEVEL_10_0 ;
 			}
 
-			DXST_LOGFILE_ADDUTF16LE( "\x07\x63\x9a\x5b\x6e\x30\x20\x00\x44\x00\x69\x00\x72\x00\x65\x00\x63\x00\x74\x00\x33\x00\x44\x00\x20\x00\x31\x00\x31\x00\x20\x00\x46\x00\x65\x00\x61\x00\x74\x00\x75\x00\x72\x00\x65\x00\x4c\x00\x65\x00\x76\x00\x65\x00\x6c\x00\x20\x00\xe5\x4e\x0a\x4e\x92\x30\xfe\x5b\x61\x8c\x68\x30\x57\x30\x7e\x30\x59\x30\x0a\x00\x00"/*@ L"指定の Direct3D 11 FeatureLevel 以上を対象とします\n" @*/ ) ;
+			DXST_LOGFILE_ADDUTF16LE( "\x07\x63\x9a\x5b\x6e\x30\x20\x00\x44\x00\x69\x00\x72\x00\x65\x00\x63\x00\x74\x00\x33\x00\x44\x00\x20\x00\x31\x00\x31\x00\x20\x00\x46\x00\x65\x00\x61\x00\x74\x00\x75\x00\x72\x00\x65\x00\x4c\x00\x65\x00\x76\x00\x65\x00\x6c\x00\x20\x00\xe5\x4e\x0a\x4e\x92\x30\xfe\x5b\x61\x8c\x68\x30\x57\x30\x7e\x30\x59\x30\x0a\x00\x00"/*@ L"?w?f??? Direct3D 11 FeatureLevel ???????e???????????\n" @*/ ) ;
 
 			FeatureLevelNum = 0 ;
 			for( i = 0 ; FeatureLevelTable[ i ] != -1 ; i ++ )
@@ -2348,7 +2350,7 @@ extern int D3D11_CreateDevice( void )
 		}
 		else
 		{
-			DXST_LOGFILE_ADDUTF16LE( "\x44\x00\x69\x00\x72\x00\x65\x00\x63\x00\x74\x00\x33\x00\x44\x00\x20\x00\x31\x00\x31\x00\x20\x00\x46\x00\x65\x00\x61\x00\x74\x00\x75\x00\x72\x00\x65\x00\x4c\x00\x65\x00\x76\x00\x65\x00\x6c\x00\x20\x00\x31\x00\x31\x00\x5f\x00\x30\x00\x20\x00\xe5\x4e\x0a\x4e\x92\x30\xfe\x5b\x61\x8c\x68\x30\x57\x30\x7e\x30\x59\x30\x0a\x00\x00"/*@ L"Direct3D 11 FeatureLevel 11_0 以上を対象とします\n" @*/ ) ;
+			DXST_LOGFILE_ADDUTF16LE( "\x44\x00\x69\x00\x72\x00\x65\x00\x63\x00\x74\x00\x33\x00\x44\x00\x20\x00\x31\x00\x31\x00\x20\x00\x46\x00\x65\x00\x61\x00\x74\x00\x75\x00\x72\x00\x65\x00\x4c\x00\x65\x00\x76\x00\x65\x00\x6c\x00\x20\x00\x31\x00\x31\x00\x5f\x00\x30\x00\x20\x00\xe5\x4e\x0a\x4e\x92\x30\xfe\x5b\x61\x8c\x68\x30\x57\x30\x7e\x30\x59\x30\x0a\x00\x00"/*@ L"Direct3D 11 FeatureLevel 11_0 ???????e???????????\n" @*/ ) ;
 			FeatureLevels[ 0 ] = D_D3D_FEATURE_LEVEL_11_1 ;
 			FeatureLevels[ 1 ] = D_D3D_FEATURE_LEVEL_11_0 ;
 //			FeatureLevels[ 2 ] = D_D3D_FEATURE_LEVEL_10_0 ;
@@ -2358,7 +2360,7 @@ extern int D3D11_CreateDevice( void )
 		{
 			int i ;
 
-			DXST_LOGFILE_ADDUTF16LE( "\x68\x51\x66\x30\x6e\x30\x20\x00\x44\x00\x69\x00\x72\x00\x65\x00\x63\x00\x74\x00\x33\x00\x44\x00\x20\x00\x31\x00\x31\x00\x20\x00\x46\x00\x65\x00\x61\x00\x74\x00\x75\x00\x72\x00\x65\x00\x4c\x00\x65\x00\x76\x00\x65\x00\x6c\x00\x20\x00\x92\x30\xfe\x5b\x61\x8c\x68\x30\x57\x30\x7e\x30\x59\x30\x0a\x00\x00"/*@ L"全ての Direct3D 11 FeatureLevel を対象とします\n" @*/ ) ;
+			DXST_LOGFILE_ADDUTF16LE( "\x68\x51\x66\x30\x6e\x30\x20\x00\x44\x00\x69\x00\x72\x00\x65\x00\x63\x00\x74\x00\x33\x00\x44\x00\x20\x00\x31\x00\x31\x00\x20\x00\x46\x00\x65\x00\x61\x00\x74\x00\x75\x00\x72\x00\x65\x00\x4c\x00\x65\x00\x76\x00\x65\x00\x6c\x00\x20\x00\x92\x30\xfe\x5b\x61\x8c\x68\x30\x57\x30\x7e\x30\x59\x30\x0a\x00\x00"/*@ L"?eS???? Direct3D 11 FeatureLevel ???e???????????\n" @*/ ) ;
 			FeatureLevelNum = 0 ;
 			for( i = 0 ; FeatureLevelTable[ i ] != -1 ; i ++ )
 			{
@@ -2368,9 +2370,9 @@ extern int D3D11_CreateDevice( void )
 		}
 #endif // DX_NON_DIRECT3D9
 
-		DXST_LOGFILE_ADDUTF16LE( "\x49\x00\x44\x00\x33\x00\x44\x00\x31\x00\x31\x00\x44\x00\x65\x00\x76\x00\x69\x00\x63\x00\x65\x00\x20\x00\xaa\x30\xd6\x30\xb8\x30\xa7\x30\xaf\x30\xc8\x30\x92\x30\xd6\x53\x97\x5f\x57\x30\x7e\x30\x59\x30\x2e\x00\x2e\x00\x2e\x00\x2e\x00\x20\x00\x00"/*@ L"ID3D11Device オブジェクトを取得します.... " @*/ ) ;
+		DXST_LOGFILE_ADDUTF16LE( "\x49\x00\x44\x00\x33\x00\x44\x00\x31\x00\x31\x00\x44\x00\x65\x00\x76\x00\x69\x00\x63\x00\x65\x00\x20\x00\xaa\x30\xd6\x30\xb8\x30\xa7\x30\xaf\x30\xc8\x30\x92\x30\xd6\x53\x97\x5f\x57\x30\x7e\x30\x59\x30\x2e\x00\x2e\x00\x2e\x00\x2e\x00\x20\x00\x00"/*@ L"ID3D11Device ?I?u?W?F?N?g?????g???????.... " @*/ ) ;
 
-		// D3D11Device の作成
+		// D3D11Device ??????
 		Result = D_D3D11CreateDeviceFunction(
 //			NULL,									// D_IDXGIAdapter                *  pAdapter,
 //			D_D3D_DRIVER_TYPE_HARDWARE,				// D_D3D_DRIVER_TYPE                DriverType,
@@ -2388,47 +2390,47 @@ extern int D3D11_CreateDevice( void )
 		) ;
 		if( Result != S_OK )
 		{
-			DXST_LOGFILE_ADDUTF16LE( "\x31\x59\x57\x65\x0a\x00\x00"/*@ L"失敗\n" @*/ ) ;
+			DXST_LOGFILE_ADDUTF16LE( "\x31\x59\x57\x65\x0a\x00\x00"/*@ L"???hs\n" @*/ ) ;
 			goto ERR ;
 		}
 
-		DXST_LOGFILE_ADDUTF16LE( "\x10\x62\x9f\x52\x0a\x00\x00"/*@ L"成功\n" @*/ ) ;
+		DXST_LOGFILE_ADDUTF16LE( "\x10\x62\x9f\x52\x0a\x00\x00"/*@ L"?????\n" @*/ ) ;
 	}
 
-	// DeferredContext の作成
+	// DeferredContext ??????
 	if( GRAWIN.Setting.UseMultiThread )
 	{
-		DXST_LOGFILE_ADDUTF16LE( "\x49\x00\x44\x00\x33\x00\x44\x00\x31\x00\x31\x00\x44\x00\x65\x00\x76\x00\x69\x00\x63\x00\x65\x00\x43\x00\x6f\x00\x6e\x00\x74\x00\x65\x00\x78\x00\x74\x00\x28\x00\x20\x00\x44\x00\x65\x00\x66\x00\x65\x00\x72\x00\x72\x00\x65\x00\x64\x00\x43\x00\x6f\x00\x6e\x00\x74\x00\x65\x00\x78\x00\x74\x00\x20\x00\x29\x00\x20\x00\xaa\x30\xd6\x30\xb8\x30\xa7\x30\xaf\x30\xc8\x30\x92\x30\xd6\x53\x97\x5f\x57\x30\x7e\x30\x59\x30\x2e\x00\x2e\x00\x2e\x00\x2e\x00\x20\x00\x00"/*@ L"ID3D11DeviceContext( DeferredContext ) オブジェクトを取得します.... " @*/ ) ;
+		DXST_LOGFILE_ADDUTF16LE( "\x49\x00\x44\x00\x33\x00\x44\x00\x31\x00\x31\x00\x44\x00\x65\x00\x76\x00\x69\x00\x63\x00\x65\x00\x43\x00\x6f\x00\x6e\x00\x74\x00\x65\x00\x78\x00\x74\x00\x28\x00\x20\x00\x44\x00\x65\x00\x66\x00\x65\x00\x72\x00\x72\x00\x65\x00\x64\x00\x43\x00\x6f\x00\x6e\x00\x74\x00\x65\x00\x78\x00\x74\x00\x20\x00\x29\x00\x20\x00\xaa\x30\xd6\x30\xb8\x30\xa7\x30\xaf\x30\xc8\x30\x92\x30\xd6\x53\x97\x5f\x57\x30\x7e\x30\x59\x30\x2e\x00\x2e\x00\x2e\x00\x2e\x00\x20\x00\x00"/*@ L"ID3D11DeviceContext( DeferredContext ) ?I?u?W?F?N?g?????g???????.... " @*/ ) ;
 
 		Result = GAPIWin.D3D11DeviceObject->CreateDeferredContext( 0, &GAPIWin.D3D11DeferredContext ) ;
 		if( Result != S_OK )
 		{
-			DXST_LOGFILE_ADDUTF16LE( "\x31\x59\x57\x65\x0a\x00\x00"/*@ L"失敗\n" @*/ ) ;
+			DXST_LOGFILE_ADDUTF16LE( "\x31\x59\x57\x65\x0a\x00\x00"/*@ L"???hs\n" @*/ ) ;
 			goto ERR ;
 		}
 
-		DXST_LOGFILE_ADDUTF16LE( "\x10\x62\x9f\x52\x0a\x00\x00"/*@ L"成功\n" @*/ ) ;
+		DXST_LOGFILE_ADDUTF16LE( "\x10\x62\x9f\x52\x0a\x00\x00"/*@ L"?????\n" @*/ ) ;
 	}
 
-	DXST_LOGFILE_ADDUTF16LE( "\x49\x00\x44\x00\x58\x00\x47\x00\x49\x00\x44\x00\x65\x00\x76\x00\x69\x00\x63\x00\x65\x00\x31\x00\x20\x00\x92\x30\xd6\x53\x97\x5f\x57\x30\x7e\x30\x59\x30\x2e\x00\x2e\x00\x2e\x00\x2e\x00\x20\x00\x00"/*@ L"IDXGIDevice1 を取得します.... " @*/ ) ;
+	DXST_LOGFILE_ADDUTF16LE( "\x49\x00\x44\x00\x58\x00\x47\x00\x49\x00\x44\x00\x65\x00\x76\x00\x69\x00\x63\x00\x65\x00\x31\x00\x20\x00\x92\x30\xd6\x53\x97\x5f\x57\x30\x7e\x30\x59\x30\x2e\x00\x2e\x00\x2e\x00\x2e\x00\x20\x00\x00"/*@ L"IDXGIDevice1 ?????g???????.... " @*/ ) ;
 
-	// IDXGIDevice1 の取得
+	// IDXGIDevice1 ?????g?
 	if( FAILED( GAPIWin.D3D11DeviceObject->QueryInterface( IID_IDXGIDEVICE1, ( void ** )&GAPIWin.DXGIDevice1Object ) ) )
 	{
-		DXST_LOGFILE_ADDUTF16LE( "\x31\x59\x57\x65\x0a\x00\x00"/*@ L"失敗\n" @*/ ) ;
+		DXST_LOGFILE_ADDUTF16LE( "\x31\x59\x57\x65\x0a\x00\x00"/*@ L"???hs\n" @*/ ) ;
 	}
 
-	DXST_LOGFILE_ADDUTF16LE( "\x10\x62\x9f\x52\x0a\x00\x00"/*@ L"成功\n" @*/ ) ;
+	DXST_LOGFILE_ADDUTF16LE( "\x10\x62\x9f\x52\x0a\x00\x00"/*@ L"?????\n" @*/ ) ;
 
 
-	// IDXGIDevice1 の取得に成功した場合は SetMaximumFrameLatency( 1 ) を実行する
+	// IDXGIDevice1 ?????g??????????????????? SetMaximumFrameLatency( 1 ) ?????s????
 	if( GAPIWin.DXGIDevice1Object != NULL )
 	{
 		GAPIWin.DXGIDevice1Object->SetMaximumFrameLatency( 1 ) ;
-		DXST_LOGFILE_ADDUTF16LE( "\x49\x00\x44\x00\x58\x00\x47\x00\x49\x00\x44\x00\x65\x00\x76\x00\x69\x00\x63\x00\x65\x00\x31\x00\x2d\x00\x3e\x00\x53\x00\x65\x00\x74\x00\x4d\x00\x61\x00\x78\x00\x69\x00\x6d\x00\x75\x00\x6e\x00\x46\x00\x72\x00\x61\x00\x6d\x00\x65\x00\x4c\x00\x61\x00\x74\x00\x65\x00\x6e\x00\x63\x00\x79\x00\x28\x00\x20\x00\x31\x00\x20\x00\x29\x00\x3b\x00\x20\x00\x92\x30\x9f\x5b\x4c\x88\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"IDXGIDevice1->SetMaximunFrameLatency( 1 ); を実行しました\n" @*/ ) ;
+		DXST_LOGFILE_ADDUTF16LE( "\x49\x00\x44\x00\x58\x00\x47\x00\x49\x00\x44\x00\x65\x00\x76\x00\x69\x00\x63\x00\x65\x00\x31\x00\x2d\x00\x3e\x00\x53\x00\x65\x00\x74\x00\x4d\x00\x61\x00\x78\x00\x69\x00\x6d\x00\x75\x00\x6e\x00\x46\x00\x72\x00\x61\x00\x6d\x00\x65\x00\x4c\x00\x61\x00\x74\x00\x65\x00\x6e\x00\x63\x00\x79\x00\x28\x00\x20\x00\x31\x00\x20\x00\x29\x00\x3b\x00\x20\x00\x92\x30\x9f\x5b\x4c\x88\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"IDXGIDevice1->SetMaximunFrameLatency( 1 ); ?????s????????\n" @*/ ) ;
 	}
 
-	// 終了
+	// ?I??
 	return 0 ;
 
 ERR :
@@ -2486,7 +2488,7 @@ ERR :
 		GAPIWin.DXGIDevice1Object = NULL ;
 	}
 
-	// エラー終了
+	// ?G????[?I??
 	return -1 ;
 }
 
@@ -2845,19 +2847,19 @@ extern	HRESULT	D3D11Device_CheckMultisampleQualityLevels(	D_DXGI_FORMAT Format, 
 	return GAPIWin.D3D11DeviceObject->CheckMultisampleQualityLevels( Format, SampleCount, pNumQualityLevels ) ;
 }
 
-// マルチサンプルレンダリングのサンプル数とクオリティをチェック
+// ?}???`?T??g?v??????g?_????g?O???T??g?v????h???N?I???e?B???`?F?b?N
 extern int D3D11Device_CheckMultiSampleParam( D_DXGI_FORMAT Format, UINT *Samples, UINT *Quality, int SamplesFailedBreak )
 {
 	UINT ColorBufferQuality, ZBufferQuality, MaxQuality ;
 
-	// Samples が 1 の場合はアンチエイリアスなしなので Quality も 0 にして返す
+	// Samples ?? 1 ??????????A??g?`?G?C???A?X?????????? Quality ?? 0 ??????????
 	if( *Samples == 1 )
 	{
 		*Quality = 0 ;
 		return 0 ;
 	}
 
-	// カラーバッファで使用できるマルチサンプルタイプとその際のクオリティを取得する
+	// ?J????[?o?b?t?@???g?p???????}???`?T??g?v???^?C?v???????????N?I???e?B?????g?????
 	ColorBufferQuality = 0 ;
 	for(;;)
 	{
@@ -2874,14 +2876,14 @@ extern int D3D11Device_CheckMultiSampleParam( D_DXGI_FORMAT Format, UINT *Sample
 		if( *Samples == 1 ) break ;
 	}
 
-	// 使用できるマルチサンプルタイプが無かったら終了
+	// ?g?p???????}???`?T??g?v???^?C?v?????????????I??
 	if( *Samples == 1 )
 	{
 		*Quality = 0 ;
 		return 0 ;
 	}
 
-	// Ｚバッファで使用できるマルチサンプルタイプとその際のクオリティを取得する
+	// ?y?o?b?t?@???g?p???????}???`?T??g?v???^?C?v???????????N?I???e?B?????g?????
 	ZBufferQuality = 0 ;
 	for(;;)
 	{
@@ -2898,18 +2900,18 @@ extern int D3D11Device_CheckMultiSampleParam( D_DXGI_FORMAT Format, UINT *Sample
 		if( *Samples == 1 ) break ;
 	}
 
-	// 使用できるマルチサンプルタイプが無かったら終了
+	// ?g?p???????}???`?T??g?v???^?C?v?????????????I??
 	if( *Samples == 1 )
 	{
 		*Quality = 0 ;
 		return 0 ;
 	}
 
-	// クオリティは低いほうに合わせる
+	// ?N?I???e?B???f??????????????????
 	MaxQuality = ( ZBufferQuality < ColorBufferQuality ? ZBufferQuality : ColorBufferQuality ) - 1 ;
 	if( *Quality > MaxQuality ) *Quality = MaxQuality ;
 
-	// 終了
+	// ?I??
 	return 0 ;
 }
 
@@ -3189,7 +3191,7 @@ extern ULONG Direct3D9_ObjectRelease_ASync( void *pObject, int ASyncThread )
 
 #ifndef DX_NON_ASYNCLOAD
 
-// マルチサンプルレンダリングのサンプル数とクオリティをチェックする非同期読み込み処理用コールバック関数
+// ?}???`?T??g?v??????g?_????g?O???T??g?v????h???N?I???e?B???`?F?b?N?????h??g????g????????????p?R?[???o?b?N????h
 static int Direct3D9_CheckMultiSampleParamASyncCallback( ASYNCLOAD_MAINTHREAD_REQUESTINFO *Info )
 {
 	return Direct3D9_CheckMultiSampleParam_ASync( 
@@ -3203,7 +3205,7 @@ static int Direct3D9_CheckMultiSampleParamASyncCallback( ASYNCLOAD_MAINTHREAD_RE
 
 #endif // DX_NON_ASYNCLOAD
 
-// マルチサンプルレンダリングのサンプル数とクオリティをチェック
+// ?}???`?T??g?v??????g?_????g?O???T??g?v????h???N?I???e?B???`?F?b?N
 extern int Direct3D9_CheckMultiSampleParam_ASync( D_D3DFORMAT Format, D_D3DMULTISAMPLE_TYPE *Samples, DWORD *Quality, int SamplesFailedBreak, int ASyncThread )
 {
 #ifndef DX_NON_ASYNCLOAD
@@ -3266,14 +3268,14 @@ extern HRESULT Direct3DDevice9_CreateRenderTarget_ASync( UINT Width, UINT Height
 #endif // DX_NON_ASYNCLOAD
 
 	return Direct3DDevice9_CreateRenderTarget(
-					Width,					// 幅
-					Height,					// 高さ
-					Format,					// フォーマット
-					MultiSample,			// マルチサンプリングタイプ
-					MultisampleQuality,		// マルチサンプリングクオリティ
-					Lockable,				// ロックはできない
-					ppSurface,				// D_IDirect3DSurface9 のポインタを受け取るアドレス
-					pSharedHandle			// 絶対 NULL
+					Width,					// ??
+					Height,					// ????
+					Format,					// ?t?H?[?}?b?g
+					MultiSample,			// ?}???`?T??g?v????g?O?^?C?v
+					MultisampleQuality,		// ?}???`?T??g?v????g?O?N?I???e?B
+					Lockable,				// ???b?N??????????
+					ppSurface,				// D_IDirect3DSurface9 ???|?C??g?^???????????A?h???X
+					pSharedHandle			// ???e? NULL
 				) ;
 }
 
@@ -3314,14 +3316,14 @@ extern HRESULT Direct3DDevice9_CreateDepthStencilSurface_ASync( UINT Width, UINT
 #endif // DX_NON_ASYNCLOAD
 
 	return Direct3DDevice9_CreateDepthStencilSurface(
-					Width,					// 幅
-					Height,					// 高さ
-					Format,					// フォーマット
-					MultiSample,			// マルチサンプリングタイプ
-					MultisampleQuality,		// マルチサンプリングクオリティ
-					Discard,				// ロックはできない
-					ppSurface,				// D_IDirect3DSurface9 のポインタを受け取るアドレス
-					pSharedHandle			// 絶対 NULL
+					Width,					// ??
+					Height,					// ????
+					Format,					// ?t?H?[?}?b?g
+					MultiSample,			// ?}???`?T??g?v????g?O?^?C?v
+					MultisampleQuality,		// ?}???`?T??g?v????g?O?N?I???e?B
+					Discard,				// ???b?N??????????
+					ppSurface,				// D_IDirect3DSurface9 ???|?C??g?^???????????A?h???X
+					pSharedHandle			// ???e? NULL
 				) ;
 }
 
@@ -3362,14 +3364,14 @@ extern HRESULT Direct3DDevice9_CreateTexture_ASync( UINT Width, UINT Height, UIN
 #endif // DX_NON_ASYNCLOAD
 
 	return Direct3DDevice9_CreateTexture(
-				Width,				// 幅
-				Height,				// 高さ
-				Levels,				// MipMap レベル
-				Usage,				// フラグ
-				Format,				// フォーマット
-				Pool,				// テクスチャを DirectX が管理するかどうか
-				ppTexture,			// D_IDirect3DTexture9 のポインタを受け取るアドレス
-				pSharedHandle		// 絶対 NULL
+				Width,				// ??
+				Height,				// ????
+				Levels,				// MipMap ???x??
+				Usage,				// ?t????O
+				Format,				// ?t?H?[?}?b?g
+				Pool,				// ?e?N?X?`???? DirectX ??????????????????
+				ppTexture,			// D_IDirect3DTexture9 ???|?C??g?^???????????A?h???X
+				pSharedHandle		// ???e? NULL
 			) ;
 }
 
@@ -3408,13 +3410,13 @@ extern HRESULT Direct3DDevice9_CreateCubeTexture_ASync( UINT EdgeLength, UINT Le
 #endif // DX_NON_ASYNCLOAD
 
 	return Direct3DDevice9_CreateCubeTexture(
-				EdgeLength,			// エッジサイズ
-				Levels,				// MipMap レベル
-				Usage,				// フラグ
-				Format,				// フォーマット
-				Pool,				// テクスチャを DirectX が管理するかどうか
-				ppCubeTexture,		// D_IDirect3DCubeTexture9 のポインタを受け取るアドレス
-				pSharedHandle		// 絶対 NULL
+				EdgeLength,			// ?G?b?W?T?C?Y
+				Levels,				// MipMap ???x??
+				Usage,				// ?t????O
+				Format,				// ?t?H?[?}?b?g
+				Pool,				// ?e?N?X?`???? DirectX ??????????????????
+				ppCubeTexture,		// D_IDirect3DCubeTexture9 ???|?C??g?^???????????A?h???X
+				pSharedHandle		// ???e? NULL
 			) ;
 }
 
@@ -3607,7 +3609,7 @@ extern int Direct3DDevice9_CreateVertexBuffer_ASyncCallback( ASYNCLOAD_MAINTHREA
 }
 #endif // DX_NON_ASYNCLOAD
 
-// 頂点バッファを作成する
+// ?f??g_?o?b?t?@??????????
 extern int Direct3DDevice9_CreateVertexBuffer_ASync( DWORD Length, DWORD Usage, DWORD FVFFlag, D_D3DPOOL Pool, D_IDirect3DVertexBuffer9 **BufferP, int ASyncThread )
 {
 	HRESULT Result ;
@@ -3647,7 +3649,7 @@ extern int Direct3DDevice9_CreateIndexBuffer_ASyncCallback( ASYNCLOAD_MAINTHREAD
 }
 #endif // DX_NON_ASYNCLOAD
 
-// インデックスバッファを作成する
+// ?C??g?f?b?N?X?o?b?t?@??????????
 extern int Direct3DDevice9_CreateIndexBuffer_ASync( DWORD Length, DWORD Usage, D_D3DFORMAT Format, D_D3DPOOL Pool, D_IDirect3DIndexBuffer9 **BufferP, int ASyncThread )
 {
 	HRESULT Result ;
@@ -4119,22 +4121,22 @@ extern int Direct3D9_Create( void )
 	D_IDirect3D9 * ( WINAPI *DF_Direct3DCreate9 )( UINT SDKVersion ) ;
 	HRESULT ( WINAPI * DF_Direct3DCreate9Ex )(  UINT SDKVersion, D_IDirect3D9Ex **ppD3D ) ;
 
-	// 既に作成済みの場合は一度削除する
+	// ????????????????????????gx????????
 	if( GAPIWin.Direct3D9Object )
 	{
 		Direct3D9_Release() ;
 	}
 	GAPIWin.Direct3D9ExObject = NULL ;
 
-	// 先に Direct3DCreate9Ex のアドレス取得を試みる
+	// ???? Direct3DCreate9Ex ???A?h???X???g?????????
 	if( GD3D9.Setting.NotUseDirect3D9Ex == FALSE )
 	{
-		DXST_LOGFILE_ADDUTF16LE( "\x49\x00\x44\x00\x69\x00\x72\x00\x65\x00\x63\x00\x74\x00\x33\x00\x44\x00\x39\x00\x45\x00\x78\x00\x20\x00\xaa\x30\xd6\x30\xb8\x30\xa7\x30\xaf\x30\xc8\x30\x92\x30\xd6\x53\x97\x5f\x57\x30\x7e\x30\x59\x30\x2e\x00\x2e\x00\x2e\x00\x2e\x00\x20\x00\x00"/*@ L"IDirect3D9Ex オブジェクトを取得します.... " @*/ ) ;
+		DXST_LOGFILE_ADDUTF16LE( "\x49\x00\x44\x00\x69\x00\x72\x00\x65\x00\x63\x00\x74\x00\x33\x00\x44\x00\x39\x00\x45\x00\x78\x00\x20\x00\xaa\x30\xd6\x30\xb8\x30\xa7\x30\xaf\x30\xc8\x30\x92\x30\xd6\x53\x97\x5f\x57\x30\x7e\x30\x59\x30\x2e\x00\x2e\x00\x2e\x00\x2e\x00\x20\x00\x00"/*@ L"IDirect3D9Ex ?I?u?W?F?N?g?????g???????.... " @*/ ) ;
 
 		DF_Direct3DCreate9Ex = ( HRESULT ( WINAPI * )( UINT SDKVersion, D_IDirect3D9Ex ** ) )GetProcAddress( GAPIWin.Direct3D9DLL, "Direct3DCreate9Ex" ) ;
 		if( DF_Direct3DCreate9Ex != NULL )
 		{
-			// IDirect3D9Ex オブジェクトの作成
+			// IDirect3D9Ex ?I?u?W?F?N?g??????
 			if( DF_Direct3DCreate9Ex( 32, &GAPIWin.Direct3D9ExObject ) == S_OK )
 			{
 				GAPIWin.Direct3D9Object = GAPIWin.Direct3D9ExObject ;
@@ -4142,56 +4144,56 @@ extern int Direct3D9_Create( void )
 		}
 	}
 
-	// IDirect3D9Ex が作成できなかったら IDirect3D9 を作成する
+	// IDirect3D9Ex ???????????????????? IDirect3D9 ??????????
 	if( GAPIWin.Direct3D9Object == NULL )
 	{
-		DXST_LOGFILE_ADDUTF16LE( "\x49\x00\x44\x00\x69\x00\x72\x00\x65\x00\x63\x00\x74\x00\x33\x00\x44\x00\x39\x00\x20\x00\xaa\x30\xd6\x30\xb8\x30\xa7\x30\xaf\x30\xc8\x30\x92\x30\xd6\x53\x97\x5f\x57\x30\x7e\x30\x59\x30\x2e\x00\x2e\x00\x2e\x00\x2e\x00\x20\x00\x00"/*@ L"IDirect3D9 オブジェクトを取得します.... " @*/ ) ;
+		DXST_LOGFILE_ADDUTF16LE( "\x49\x00\x44\x00\x69\x00\x72\x00\x65\x00\x63\x00\x74\x00\x33\x00\x44\x00\x39\x00\x20\x00\xaa\x30\xd6\x30\xb8\x30\xa7\x30\xaf\x30\xc8\x30\x92\x30\xd6\x53\x97\x5f\x57\x30\x7e\x30\x59\x30\x2e\x00\x2e\x00\x2e\x00\x2e\x00\x20\x00\x00"/*@ L"IDirect3D9 ?I?u?W?F?N?g?????g???????.... " @*/ ) ;
 
-		// Direct3DCreate9 API のアドレス取得
+		// Direct3DCreate9 API ???A?h???X???g?
 		DF_Direct3DCreate9 = ( D_IDirect3D9 * ( WINAPI * )( UINT SDKVersion ) )GetProcAddress( GAPIWin.Direct3D9DLL, "Direct3DCreate9" ) ;
 		if( DF_Direct3DCreate9 == NULL )
 		{
-			return DXST_LOGFILE_ADDUTF16LE( "\x44\x00\x69\x00\x72\x00\x65\x00\x63\x00\x74\x00\x33\x00\x44\x00\x43\x00\x72\x00\x65\x00\x61\x00\x74\x00\x65\x00\x39\x00\x20\x00\x41\x00\x50\x00\x49\x00\x6e\x30\xa2\x30\xc9\x30\xec\x30\xb9\x30\xd6\x53\x97\x5f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Direct3DCreate9 APIのアドレス取得に失敗しました\n" @*/ ) ;
+			return DXST_LOGFILE_ADDUTF16LE( "\x44\x00\x69\x00\x72\x00\x65\x00\x63\x00\x74\x00\x33\x00\x44\x00\x43\x00\x72\x00\x65\x00\x61\x00\x74\x00\x65\x00\x39\x00\x20\x00\x41\x00\x50\x00\x49\x00\x6e\x30\xa2\x30\xc9\x30\xec\x30\xb9\x30\xd6\x53\x97\x5f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Direct3DCreate9 API???A?h???X???g??????hs????????\n" @*/ ) ;
 		}
 
-		// IDirect3D9 オブジェクトの作成
+		// IDirect3D9 ?I?u?W?F?N?g??????
 		GAPIWin.Direct3D9Object = DF_Direct3DCreate9( 32 ) ;
 		if( GAPIWin.Direct3D9Object == NULL )
 		{
-			return DXST_LOGFILE_ADDUTF16LE( "\x49\x00\x44\x00\x69\x00\x72\x00\x65\x00\x63\x00\x74\x00\x33\x00\x44\x00\x39\x00\x20\x00\xaa\x30\xd6\x30\xb8\x30\xa7\x30\xaf\x30\xc8\x30\x6e\x30\xd6\x53\x97\x5f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"IDirect3D9 オブジェクトの取得に失敗しました\n" @*/ ) ;
+			return DXST_LOGFILE_ADDUTF16LE( "\x49\x00\x44\x00\x69\x00\x72\x00\x65\x00\x63\x00\x74\x00\x33\x00\x44\x00\x39\x00\x20\x00\xaa\x30\xd6\x30\xb8\x30\xa7\x30\xaf\x30\xc8\x30\x6e\x30\xd6\x53\x97\x5f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"IDirect3D9 ?I?u?W?F?N?g?????g??????hs????????\n" @*/ ) ;
 		}
 	}
 
-	DXST_LOGFILE_ADDUTF16LE( "\x10\x62\x9f\x52\x0a\x00\x00"/*@ L"成功\n" @*/ ) ;
+	DXST_LOGFILE_ADDUTF16LE( "\x10\x62\x9f\x52\x0a\x00\x00"/*@ L"?????\n" @*/ ) ;
 
-	// 終了
+	// ?I??
 	return 0 ;
 }
 
 extern int Direct3D9_LoadDLL( void )
 {
-	// Direct3D9.DLL の読み込み
+	// Direct3D9.DLL ???g???????
 	GAPIWin.Direct3D9DLL = LoadLibraryW( L"d3d9.dll" ) ;
 	if( GAPIWin.Direct3D9DLL == NULL )
 	{
-		return DXST_LOGFILE_ADDUTF16LE( "\x64\x00\x33\x00\x64\x00\x39\x00\x2e\x00\x64\x00\x6c\x00\x6c\x00\x20\x00\x6e\x30\xad\x8a\x7f\x30\xbc\x8f\x7f\x30\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"d3d9.dll の読み込みに失敗しました\n" @*/ ) ;
+		return DXST_LOGFILE_ADDUTF16LE( "\x64\x00\x33\x00\x64\x00\x39\x00\x2e\x00\x64\x00\x6c\x00\x6c\x00\x20\x00\x6e\x30\xad\x8a\x7f\x30\xbc\x8f\x7f\x30\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"d3d9.dll ???g????????????hs????????\n" @*/ ) ;
 	}
 
-	// 正常終了
+	// ?????I??
 	return 0 ;
 }
 
 extern int Direct3D9_FreeDLL( void )
 {
-	// d3d9.dll の解放
+	// d3d9.dll ???????
 	if( GAPIWin.Direct3D9DLL )
 	{
-		DXST_LOGFILE_ADDUTF16LE( "\x64\x00\x33\x00\x64\x00\x39\x00\x2e\x00\x64\x00\x6c\x00\x6c\x00\x20\x00\x6e\x30\xe3\x89\x3e\x65\x20\x00\x31\x00\x0a\x00\x00"/*@ L"d3d9.dll の解放 1\n" @*/ ) ;
+		DXST_LOGFILE_ADDUTF16LE( "\x64\x00\x33\x00\x64\x00\x39\x00\x2e\x00\x64\x00\x6c\x00\x6c\x00\x20\x00\x6e\x30\xe3\x89\x3e\x65\x20\x00\x31\x00\x0a\x00\x00"/*@ L"d3d9.dll ??????? 1\n" @*/ ) ;
 		FreeLibrary( GAPIWin.Direct3D9DLL ) ;
 		GAPIWin.Direct3D9DLL = NULL ;
 	}
 
-	// 正常終了
+	// ?????I??
 	return 0 ;
 }
 
@@ -4271,11 +4273,11 @@ extern int Direct3D9_CreateDevice( void )
 
 	SETUP_WIN_API
 
-	// パラメータのセット
+	// ?p??????[?^???Z?b?g
 	_MEMSET( &param, 0, sizeof( D_D3DPRESENT_PARAMETERS ) ) ;
 	if( NS_GetWindowModeFlag() == TRUE || NS_GetUseFullScreenResolutionMode() == DX_FSRESOLUTIONMODE_BORDERLESS_WINDOW )
 	{
-		// ウインドウモード
+		// ?E?C??g?h?E???[?h
 		Direct3D9_GetAdapterDisplayMode( 0, &DisplayMode ) ;
 		param.BackBufferFormat = DisplayMode.Format ;
 		param.BackBufferCount  = 1 ;
@@ -4309,12 +4311,12 @@ extern int Direct3D9_CreateDevice( void )
 			break ;
 		}
 
-		// Aero の有効・無効を設定する
+		// Aero ???L???E?????????f?????
 		SetEnableAero( GRAWIN.Setting.DisableAeroFlag == 2 ? FALSE : TRUE ) ;
 	}
 	else
 	{
-		// フルスクリーンモード
+		// ?t???X?N???[??g???[?h
 		Graphics_Screen_SetupFullScreenModeInfo() ;
 		switch( GSYS.Screen.FullScreenUseDispModeData.ColorBitDepth )
 		{
@@ -4328,7 +4330,7 @@ extern int Direct3D9_CreateDevice( void )
 			break ;
 
 		default :
-			DXST_LOGFILE_ADDUTF16LE( "\x5e\x97\xfe\x5b\xdc\x5f\x6e\x30\xd0\x30\xc3\x30\xaf\x30\xd0\x30\xc3\x30\xd5\x30\xa1\x30\xfc\x30\xd3\x30\xc3\x30\xc8\x30\xf1\x6d\xa6\x5e\x4c\x30\x07\x63\x9a\x5b\x55\x30\x8c\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"非対応のバックバッファービット深度が指定されました\n" @*/ ) ;
+			DXST_LOGFILE_ADDUTF16LE( "\x5e\x97\xfe\x5b\xdc\x5f\x6e\x30\xd0\x30\xc3\x30\xaf\x30\xd0\x30\xc3\x30\xd5\x30\xa1\x30\xfc\x30\xd3\x30\xc3\x30\xc8\x30\xf1\x6d\xa6\x5e\x4c\x30\x07\x63\x9a\x5b\x55\x30\x8c\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"?h??e???????o?b?N?o?b?t?@?[?r?b?g?[?gx???w?f???????????\n" @*/ ) ;
 			goto ERR ;
 		}
 		param.BackBufferCount            = 1 ;
@@ -4338,33 +4340,33 @@ extern int Direct3D9_CreateDevice( void )
 //		param.SwapEffect                 = ( D_D3DMULTISAMPLE_TYPE )GSYS.Setting.FSAAMultiSampleCount == D_D3DMULTISAMPLE_NONE ? D_D3DSWAPEFFECT_COPY : D_D3DSWAPEFFECT_DISCARD ;
 		param.SwapEffect                 = D_D3DSWAPEFFECT_DISCARD ;
 
-		// ディスプレイモードの設定
+		// ?f?B?X?v???C???[?h?????f?
 		{
 			DisplayModeEx.Size             = sizeof( DisplayModeEx ) ;
 			DisplayModeEx.Format           = param.BackBufferFormat ;
 			DisplayModeEx.RefreshRate      = param.FullScreen_RefreshRateInHz ;
 			DisplayModeEx.ScanLineOrdering = D_D3DSCANLINEORDERING_PROGRESSIVE ;
 
-			// バックバッファとディスプレイモードの解像度をセット
+			// ?o?b?N?o?b?t?@???f?B?X?v???C???[?h??????e??gx???Z?b?g
 			param.BackBufferWidth  = ( UINT )GSYS.Screen.FullScreenUseDispModeData.Width ;
 			param.BackBufferHeight = ( UINT )GSYS.Screen.FullScreenUseDispModeData.Height ;
 			DisplayModeEx.Width    = param.BackBufferWidth ;
 			DisplayModeEx.Height   = param.BackBufferHeight ;
 		}
 
-		DXST_LOGFILEFMT_ADDUTF16LE(( "\x3b\x75\x62\x97\xe3\x89\xcf\x50\xa6\x5e\x92\x30\x20\x00\x25\x00\x75\x00\x20\x00\x78\x00\x20\x00\x25\x00\x75\x00\x20\x00\x20\x00\xea\x30\xd5\x30\xec\x30\xc3\x30\xb7\x30\xe5\x30\xec\x30\xfc\x30\xc8\x30\x92\x30\x20\x00\x25\x00\x64\x00\x48\x00\x7a\x00\x20\x00\x6b\x30\x09\x59\xf4\x66\x57\x30\x7e\x30\x59\x30\x00"/*@ L"画面解像度を %u x %u  リフレッシュレートを %dHz に変更します" @*/,
+		DXST_LOGFILEFMT_ADDUTF16LE(( "\x3b\x75\x62\x97\xe3\x89\xcf\x50\xa6\x5e\x92\x30\x20\x00\x25\x00\x75\x00\x20\x00\x78\x00\x20\x00\x25\x00\x75\x00\x20\x00\x20\x00\xea\x30\xd5\x30\xec\x30\xc3\x30\xb7\x30\xe5\x30\xec\x30\xfc\x30\xc8\x30\x92\x30\x20\x00\x25\x00\x64\x00\x48\x00\x7a\x00\x20\x00\x6b\x30\x09\x59\xf4\x66\x57\x30\x7e\x30\x59\x30\x00"/*@ L"?????????e??gx?? %u x %u  ???t???b?V??c???[?g?? %dHz ?????X??????" @*/,
 			GSYS.Screen.FullScreenUseDispModeData.Width,
 			GSYS.Screen.FullScreenUseDispModeData.Height,
 			GSYS.Screen.FullScreenUseDispModeData.RefreshRate )) ;
 
-		// フルスクリーンの場合で明示的に Aero のＯＮを設定していない場合は必ず DWM を無効にする
+		// ?t???X?N???[??g??????????????gI?? Aero ???n?m?????f???????????????????K?? DWM ????????????
 		if( GRAWIN.Setting.DisableAeroFlag != 1 )
 		{
 			SetEnableAero( FALSE ) ;
 		}
 		if( WinAPIData.DF_DwmEnableComposition )
 		{
-			DXST_LOGFILE_ADDUTF16LE( "\x44\x00\x65\x00\x73\x00\x6b\x00\x74\x00\x6f\x00\x70\x00\x20\x00\x57\x00\x69\x00\x6e\x00\x64\x00\x6f\x00\x77\x00\x20\x00\x4d\x00\x61\x00\x6e\x00\x61\x00\x67\x00\x65\x00\x72\x00\x20\x00\x92\x30\x21\x71\xb9\x52\x6b\x30\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Desktop Window Manager を無効にしました\n" @*/ ) ;
+			DXST_LOGFILE_ADDUTF16LE( "\x44\x00\x65\x00\x73\x00\x6b\x00\x74\x00\x6f\x00\x70\x00\x20\x00\x57\x00\x69\x00\x6e\x00\x64\x00\x6f\x00\x77\x00\x20\x00\x4d\x00\x61\x00\x6e\x00\x61\x00\x67\x00\x65\x00\x72\x00\x20\x00\x92\x30\x21\x71\xb9\x52\x6b\x30\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Desktop Window Manager ????????????????\n" @*/ ) ;
 		}
 	}
 	param.MultiSampleType    = ( D_D3DMULTISAMPLE_TYPE )GSYS.Setting.FSAAMultiSampleCount ;
@@ -4376,7 +4378,7 @@ extern int Direct3D9_CreateDevice( void )
 	param.EnableAutoDepthStencil = FALSE ;
 	param.Flags                  = ( DWORD )( ( D_D3DMULTISAMPLE_TYPE )GSYS.Setting.FSAAMultiSampleCount == D_D3DMULTISAMPLE_NONE ? D_D3DPRESENTFLAG_LOCKABLE_BACKBUFFER/* D_D3DPRESENTFLAG_DEVICECLIP */ : 0 ) ;
 
-	// FSAAの設定値を調べる
+	// FSAA?????f??fl???f???~??
 	if( GSYS.Setting.FSAAMultiSampleCount != 0 )
 	{
 		param.MultiSampleType                 = ( D_D3DMULTISAMPLE_TYPE )GSYS.Setting.FSAAMultiSampleCount ;
@@ -4403,8 +4405,8 @@ extern int Direct3D9_CreateDevice( void )
 		}
 	}
 
-	// シェーダーバージョン２．０を使用できない場合は
-	// 頂点処理はすべてソフトウエアで行う
+	// ?V?F?[?_?[?o?[?W?????g?Q?D?O???g?p???????????????
+	// ?f??g_??????????~???\?t?g?E?G?A???s??
 	Direct3D9_GetDeviceCaps( ( DWORD )( GSYS.Screen.ValidUseDisplayIndex ? GSYS.Screen.UseDisplayIndex : D_D3DADAPTER_DEFAULT ), D_D3DDEVTYPE_HAL, &DevCaps ) ;
 	if( ( DevCaps.VertexShaderVersion & 0xffff ) < 0x200 || 
 		( DevCaps.PixelShaderVersion  & 0xffff ) < 0x200 )
@@ -4418,7 +4420,7 @@ extern int Direct3D9_CreateDevice( void )
 	GD3D9.Device.Shader.NativeVertexShaderVersion = DevCaps.VertexShaderVersion ;
 	if( GAPIWin.Direct3D9ExObject )
 	{
-		DXST_LOGFILE_ADDUTF16LE( "\x49\x00\x44\x00\x69\x00\x72\x00\x65\x00\x63\x00\x74\x00\x33\x00\x44\x00\x44\x00\x65\x00\x76\x00\x69\x00\x63\x00\x65\x00\x39\x00\x45\x00\x78\x00\x20\x00\xaa\x30\xd6\x30\xb8\x30\xa7\x30\xaf\x30\xc8\x30\x92\x30\xd6\x53\x97\x5f\x57\x30\x7e\x30\x59\x30\x2e\x00\x2e\x00\x2e\x00\x2e\x00\x20\x00\x00"/*@ L"IDirect3DDevice9Ex オブジェクトを取得します.... " @*/ ) ;
+		DXST_LOGFILE_ADDUTF16LE( "\x49\x00\x44\x00\x69\x00\x72\x00\x65\x00\x63\x00\x74\x00\x33\x00\x44\x00\x44\x00\x65\x00\x76\x00\x69\x00\x63\x00\x65\x00\x39\x00\x45\x00\x78\x00\x20\x00\xaa\x30\xd6\x30\xb8\x30\xa7\x30\xaf\x30\xc8\x30\x92\x30\xd6\x53\x97\x5f\x57\x30\x7e\x30\x59\x30\x2e\x00\x2e\x00\x2e\x00\x2e\x00\x20\x00\x00"/*@ L"IDirect3DDevice9Ex ?I?u?W?F?N?g?????g???????.... " @*/ ) ;
 
 		hr = GAPIWin.Direct3D9ExObject->CreateDeviceEx(
 			( DWORD )( GSYS.Screen.ValidUseDisplayIndex ? GSYS.Screen.UseDisplayIndex : D_D3DADAPTER_DEFAULT ),
@@ -4438,7 +4440,7 @@ extern int Direct3D9_CreateDevice( void )
 NOTUSEHARDWARE_VERTEXPROCESSINGEX:
 			GD3D9.Device.Caps.VertexHardwareProcess = FALSE ;
 
-			// だめだった場合はソフトウエアプロセッシング
+			// ??????????????????\?t?g?E?G?A?v???Z?b?V??g?O
 			hr = GAPIWin.Direct3D9ExObject->CreateDeviceEx(
 				( UINT )( GSYS.Screen.ValidUseDisplayIndex ? GSYS.Screen.UseDisplayIndex : D_D3DADAPTER_DEFAULT ),
 				D_D3DDEVTYPE_HAL,
@@ -4455,27 +4457,27 @@ NOTUSEHARDWARE_VERTEXPROCESSINGEX:
 			{
 				GD3D9.Setting.NotUseDirect3D9Ex = TRUE ;
 
-				DXST_LOGFILE_ADDUTF16LE( "\x44\x00\x69\x00\x72\x00\x65\x00\x63\x00\x74\x00\x33\x00\x44\x00\x44\x00\x65\x00\x76\x00\x69\x00\x63\x00\x65\x00\x39\x00\x45\x00\x78\x00\x20\x00\x6e\x30\x5c\x4f\x10\x62\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Direct3DDevice9Ex の作成に失敗しました\n" @*/ ) ;
+				DXST_LOGFILE_ADDUTF16LE( "\x44\x00\x69\x00\x72\x00\x65\x00\x63\x00\x74\x00\x33\x00\x44\x00\x44\x00\x65\x00\x76\x00\x69\x00\x63\x00\x65\x00\x39\x00\x45\x00\x78\x00\x20\x00\x6e\x30\x5c\x4f\x10\x62\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Direct3DDevice9Ex ???????????hs????????\n" @*/ ) ;
 				ErrorRet = -2 ;
 				goto ERR ;
 			}
 			else
 			{
-				DXST_LOGFILE_ADDUTF16LE( "\xbd\x30\xd5\x30\xc8\x30\xa6\x30\xa8\x30\xa2\x30\x02\x98\xb9\x70\x14\x6f\x97\x7b\x92\x30\x7f\x4f\x28\x75\x57\x30\x7e\x30\x59\x30\x0a\x00\x00"/*@ L"ソフトウエア頂点演算を使用します\n" @*/ ) ;
+				DXST_LOGFILE_ADDUTF16LE( "\xbd\x30\xd5\x30\xc8\x30\xa6\x30\xa8\x30\xa2\x30\x02\x98\xb9\x70\x14\x6f\x97\x7b\x92\x30\x7f\x4f\x28\x75\x57\x30\x7e\x30\x59\x30\x0a\x00\x00"/*@ L"?\?t?g?E?G?A?f??g_?????Z???g?p??????\n" @*/ ) ;
 			}
 		}
 		else
 		{
-			DXST_LOGFILE_ADDUTF16LE( "\xcf\x30\xfc\x30\xc9\x30\xa6\x30\xa8\x30\xa2\x30\x02\x98\xb9\x70\x14\x6f\x97\x7b\x92\x30\x7f\x4f\x28\x75\x57\x30\x7e\x30\x59\x30\x0a\x00\x00"/*@ L"ハードウエア頂点演算を使用します\n" @*/ ) ;
+			DXST_LOGFILE_ADDUTF16LE( "\xcf\x30\xfc\x30\xc9\x30\xa6\x30\xa8\x30\xa2\x30\x02\x98\xb9\x70\x14\x6f\x97\x7b\x92\x30\x7f\x4f\x28\x75\x57\x30\x7e\x30\x59\x30\x0a\x00\x00"/*@ L"?n?[?h?E?G?A?f??g_?????Z???g?p??????\n" @*/ ) ;
 		}
 		GAPIWin.Direct3DDevice9Object = GAPIWin.Direct3DDevice9ExObject ;
 
-		// レンダリング保持できるフレーム数を最小にする
+		// ????g?_????g?O???????????t???[????h????????????
 		GAPIWin.Direct3DDevice9ExObject->SetMaximumFrameLatency( 1 ) ;
 	}
 	else
 	{
-		DXST_LOGFILE_ADDUTF16LE( "\x49\x00\x44\x00\x69\x00\x72\x00\x65\x00\x63\x00\x74\x00\x33\x00\x44\x00\x44\x00\x65\x00\x76\x00\x69\x00\x63\x00\x65\x00\x39\x00\x20\x00\xaa\x30\xd6\x30\xb8\x30\xa7\x30\xaf\x30\xc8\x30\x92\x30\xd6\x53\x97\x5f\x57\x30\x7e\x30\x59\x30\x2e\x00\x2e\x00\x2e\x00\x2e\x00\x20\x00\x00"/*@ L"IDirect3DDevice9 オブジェクトを取得します.... " @*/ ) ;
+		DXST_LOGFILE_ADDUTF16LE( "\x49\x00\x44\x00\x69\x00\x72\x00\x65\x00\x63\x00\x74\x00\x33\x00\x44\x00\x44\x00\x65\x00\x76\x00\x69\x00\x63\x00\x65\x00\x39\x00\x20\x00\xaa\x30\xd6\x30\xb8\x30\xa7\x30\xaf\x30\xc8\x30\x92\x30\xd6\x53\x97\x5f\x57\x30\x7e\x30\x59\x30\x2e\x00\x2e\x00\x2e\x00\x2e\x00\x20\x00\x00"/*@ L"IDirect3DDevice9 ?I?u?W?F?N?g?????g???????.... " @*/ ) ;
 
 		hr = GAPIWin.Direct3D9Object->CreateDevice(
 			( UINT )( GSYS.Screen.ValidUseDisplayIndex ? GSYS.Screen.UseDisplayIndex : D_D3DADAPTER_DEFAULT ),
@@ -4494,7 +4496,7 @@ NOTUSEHARDWARE_VERTEXPROCESSINGEX:
 NOTUSEHARDWARE_VERTEXPROCESSING:
 			GD3D9.Device.Caps.VertexHardwareProcess = FALSE ;
 
-			// だめだった場合はソフトウエアプロセッシング
+			// ??????????????????\?t?g?E?G?A?v???Z?b?V??g?O
 			hr = GAPIWin.Direct3D9Object->CreateDevice(
 				( UINT )( GSYS.Screen.ValidUseDisplayIndex ? GSYS.Screen.UseDisplayIndex : D_D3DADAPTER_DEFAULT ),
 				D_D3DDEVTYPE_HAL,
@@ -4508,25 +4510,25 @@ NOTUSEHARDWARE_VERTEXPROCESSING:
 			) ;
 			if( FAILED( hr ) )
 			{
-				DXST_LOGFILE_ADDUTF16LE( "\x44\x00\x69\x00\x72\x00\x65\x00\x63\x00\x74\x00\x33\x00\x44\x00\x44\x00\x65\x00\x76\x00\x69\x00\x63\x00\x65\x00\x39\x00\x20\x00\x6e\x30\x5c\x4f\x10\x62\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Direct3DDevice9 の作成に失敗しました\n" @*/ ) ;
+				DXST_LOGFILE_ADDUTF16LE( "\x44\x00\x69\x00\x72\x00\x65\x00\x63\x00\x74\x00\x33\x00\x44\x00\x44\x00\x65\x00\x76\x00\x69\x00\x63\x00\x65\x00\x39\x00\x20\x00\x6e\x30\x5c\x4f\x10\x62\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Direct3DDevice9 ???????????hs????????\n" @*/ ) ;
 				goto ERR ;
 			}
 			else
 			{
-				DXST_LOGFILE_ADDUTF16LE( "\xbd\x30\xd5\x30\xc8\x30\xa6\x30\xa8\x30\xa2\x30\x02\x98\xb9\x70\x14\x6f\x97\x7b\x92\x30\x7f\x4f\x28\x75\x57\x30\x7e\x30\x59\x30\x0a\x00\x00"/*@ L"ソフトウエア頂点演算を使用します\n" @*/ ) ;
+				DXST_LOGFILE_ADDUTF16LE( "\xbd\x30\xd5\x30\xc8\x30\xa6\x30\xa8\x30\xa2\x30\x02\x98\xb9\x70\x14\x6f\x97\x7b\x92\x30\x7f\x4f\x28\x75\x57\x30\x7e\x30\x59\x30\x0a\x00\x00"/*@ L"?\?t?g?E?G?A?f??g_?????Z???g?p??????\n" @*/ ) ;
 			}
 		}
 		else
 		{
-			DXST_LOGFILE_ADDUTF16LE( "\xcf\x30\xfc\x30\xc9\x30\xa6\x30\xa8\x30\xa2\x30\x02\x98\xb9\x70\x14\x6f\x97\x7b\x92\x30\x7f\x4f\x28\x75\x57\x30\x7e\x30\x59\x30\x0a\x00\x00"/*@ L"ハードウエア頂点演算を使用します\n" @*/ ) ;
+			DXST_LOGFILE_ADDUTF16LE( "\xcf\x30\xfc\x30\xc9\x30\xa6\x30\xa8\x30\xa2\x30\x02\x98\xb9\x70\x14\x6f\x97\x7b\x92\x30\x7f\x4f\x28\x75\x57\x30\x7e\x30\x59\x30\x0a\x00\x00"/*@ L"?n?[?h?E?G?A?f??g_?????Z???g?p??????\n" @*/ ) ;
 		}
 	}
 
-	// バックバッファの初期化
+	// ?o?b?N?o?b?t?@??????????
 	{
 		DWORD ClearColor ;
 
-		// フルスクリーンモード且つフルスクリーン解像度モードが DX_FSRESOLUTIONMODE_NATIVE 以外の場合は必ず真っ黒で初期化する
+		// ?t???X?N???[??g???[?h?????t???X?N???[??g????e??gx???[?h?? DX_FSRESOLUTIONMODE_NATIVE ???O??????????K???^??????????????????
 		if( NS_GetWindowModeFlag() == FALSE && GSYS.Screen.FullScreenResolutionModeAct != DX_FSRESOLUTIONMODE_NATIVE )
 		{
 			ClearColor = 0 ;
@@ -4546,25 +4548,292 @@ NOTUSEHARDWARE_VERTEXPROCESSING:
 		Direct3DDevice9_Clear( 0, NULL, D_D3DCLEAR_TARGET, ClearColor, 1.0f, 0 ) ;
 	}
 
-	// スワップチェインのアドレスを取得
+	// ?X???b?v?`?F?C??g???A?h???X?????g?
 	GAPIWin.Direct3DDevice9Object->GetSwapChain( 0, &GAPIWin.Direct3DSwapChain9Object ) ;
 
 	CL_strcpy( WCHAR_T_CHARCODEFORMAT, ( char * )WinData.PcInfo.DirectXString, ( char * )L"DirectX 9" ) ;
 
-	// 正常終了
+	// ?????I??
 	return 0 ;
 
-	// エラー処理
+	// ?G????[????
 ERR:
 	return ErrorRet ;
 }
 
-// マルチサンプルレンダリングのサンプル数とクオリティをチェック
+extern int Direct3DDevice9_Reset(void)
+{
+	D_D3DCAPS9              DevCaps;
+	D_D3DPRESENT_PARAMETERS param;
+	HRESULT                 hr;
+	int                     ModeCount;
+	D_D3DDISPLAYMODE        DisplayMode;
+	D_D3DDISPLAYMODEEX      DisplayModeEx;
+	int                     ErrorRet = -1;
+
+	SETUP_WIN_API
+
+		// ?p??????[?^???Z?b?g
+		_MEMSET(&param, 0, sizeof(D_D3DPRESENT_PARAMETERS));
+	if (NS_GetWindowModeFlag() == TRUE || NS_GetUseFullScreenResolutionMode() == DX_FSRESOLUTIONMODE_BORDERLESS_WINDOW)
+	{
+		// ?E?C??g?h?E???[?h
+		Direct3D9_GetAdapterDisplayMode(0, &DisplayMode);
+		param.BackBufferFormat = DisplayMode.Format;
+		param.BackBufferCount = 1;
+		param.Windowed = TRUE;
+		param.SwapEffect = (D_D3DMULTISAMPLE_TYPE)GSYS.Setting.FSAAMultiSampleCount == D_D3DMULTISAMPLE_NONE ? D_D3DSWAPEFFECT_COPY : D_D3DSWAPEFFECT_DISCARD;
+
+		if (NS_GetWindowModeFlag() == FALSE && NS_GetUseFullScreenResolutionMode() == DX_FSRESOLUTIONMODE_BORDERLESS_WINDOW)
+		{
+			Graphics_Screen_SetupFullScreenModeInfo();
+			param.BackBufferWidth = (UINT)GSYS.Screen.FullScreenUseDispModeData.Width;
+			param.BackBufferHeight = (UINT)GSYS.Screen.FullScreenUseDispModeData.Height;
+		}
+		else
+		{
+			param.BackBufferWidth = (UINT)GSYS.Screen.MainScreenSizeX;
+			param.BackBufferHeight = (UINT)GSYS.Screen.MainScreenSizeY;
+		}
+
+		switch (DisplayMode.Format)
+		{
+		case D_D3DFMT_X8R8G8B8:
+			GSYS.Screen.MainScreenColorBitDepth = 32;
+			SetMemImgDefaultColorType(1);
+			break;
+
+		case D_D3DFMT_X1R5G5B5:
+		case D_D3DFMT_A1R5G5B5:
+		case D_D3DFMT_R5G6B5:
+			GSYS.Screen.MainScreenColorBitDepth = 16;
+			SetMemImgDefaultColorType(0);
+			break;
+		}
+
+		// Aero ???L???E?????????f?????
+		SetEnableAero(GRAWIN.Setting.DisableAeroFlag == 2 ? FALSE : TRUE);
+	}
+	else
+	{
+		// ?t???X?N???[??g???[?h
+		Graphics_Screen_SetupFullScreenModeInfo();
+		switch (GSYS.Screen.FullScreenUseDispModeData.ColorBitDepth)
+		{
+		case 16:
+			ModeCount = (int)Direct3D9_GetAdapterModeCount((DWORD)(GSYS.Screen.ValidUseDisplayIndex ? GSYS.Screen.UseDisplayIndex : D_D3DADAPTER_DEFAULT), D_D3DFMT_R5G6B5);
+			param.BackBufferFormat = ModeCount != 0 ? D_D3DFMT_R5G6B5 : D_D3DFMT_X1R5G5B5;
+			break;
+
+		case 32:
+			param.BackBufferFormat = D_D3DFMT_X8R8G8B8;
+			break;
+
+		default:
+			DXST_LOGFILE_ADDUTF16LE("\x5e\x97\xfe\x5b\xdc\x5f\x6e\x30\xd0\x30\xc3\x30\xaf\x30\xd0\x30\xc3\x30\xd5\x30\xa1\x30\xfc\x30\xd3\x30\xc3\x30\xc8\x30\xf1\x6d\xa6\x5e\x4c\x30\x07\x63\x9a\x5b\x55\x30\x8c\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"?h??e???????o?b?N?o?b?t?@?[?r?b?g?[?gx???w?f???????????\n" @*/);
+			goto ERR;
+		}
+		param.BackBufferCount = 1;
+		param.Windowed = FALSE;
+		param.FullScreen_RefreshRateInHz = (UINT)GSYS.Screen.FullScreenUseDispModeData.RefreshRate /* GSYS.Screen.MainScreenRefreshRate */;
+		//		param.SwapEffect                 = GSYS.Screen.Emulation320x240Flag ? D_D3DSWAPEFFECT_COPY : D_D3DSWAPEFFECT_DISCARD ;
+		//		param.SwapEffect                 = ( D_D3DMULTISAMPLE_TYPE )GSYS.Setting.FSAAMultiSampleCount == D_D3DMULTISAMPLE_NONE ? D_D3DSWAPEFFECT_COPY : D_D3DSWAPEFFECT_DISCARD ;
+		param.SwapEffect = D_D3DSWAPEFFECT_DISCARD;
+
+		// ?f?B?X?v???C???[?h?????f?
+		{
+			DisplayModeEx.Size = sizeof(DisplayModeEx);
+			DisplayModeEx.Format = param.BackBufferFormat;
+			DisplayModeEx.RefreshRate = param.FullScreen_RefreshRateInHz;
+			DisplayModeEx.ScanLineOrdering = D_D3DSCANLINEORDERING_PROGRESSIVE;
+
+			// ?o?b?N?o?b?t?@???f?B?X?v???C???[?h??????e??gx???Z?b?g
+			param.BackBufferWidth = (UINT)GSYS.Screen.FullScreenUseDispModeData.Width;
+			param.BackBufferHeight = (UINT)GSYS.Screen.FullScreenUseDispModeData.Height;
+			DisplayModeEx.Width = param.BackBufferWidth;
+			DisplayModeEx.Height = param.BackBufferHeight;
+		}
+
+		DXST_LOGFILEFMT_ADDUTF16LE(("\x3b\x75\x62\x97\xe3\x89\xcf\x50\xa6\x5e\x92\x30\x20\x00\x25\x00\x75\x00\x20\x00\x78\x00\x20\x00\x25\x00\x75\x00\x20\x00\x20\x00\xea\x30\xd5\x30\xec\x30\xc3\x30\xb7\x30\xe5\x30\xec\x30\xfc\x30\xc8\x30\x92\x30\x20\x00\x25\x00\x64\x00\x48\x00\x7a\x00\x20\x00\x6b\x30\x09\x59\xf4\x66\x57\x30\x7e\x30\x59\x30\x00"/*@ L"?????????e??gx?? %u x %u  ???t???b?V??c???[?g?? %dHz ?????X??????" @*/,
+			GSYS.Screen.FullScreenUseDispModeData.Width,
+			GSYS.Screen.FullScreenUseDispModeData.Height,
+			GSYS.Screen.FullScreenUseDispModeData.RefreshRate));
+
+		// ?t???X?N???[??g??????????????gI?? Aero ???n?m?????f???????????????????K?? DWM ????????????
+		if (GRAWIN.Setting.DisableAeroFlag != 1)
+		{
+			SetEnableAero(FALSE);
+		}
+		if (WinAPIData.DF_DwmEnableComposition)
+		{
+			DXST_LOGFILE_ADDUTF16LE("\x44\x00\x65\x00\x73\x00\x6b\x00\x74\x00\x6f\x00\x70\x00\x20\x00\x57\x00\x69\x00\x6e\x00\x64\x00\x6f\x00\x77\x00\x20\x00\x4d\x00\x61\x00\x6e\x00\x61\x00\x67\x00\x65\x00\x72\x00\x20\x00\x92\x30\x21\x71\xb9\x52\x6b\x30\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Desktop Window Manager ????????????????\n" @*/);
+		}
+	}
+	param.MultiSampleType = (D_D3DMULTISAMPLE_TYPE)GSYS.Setting.FSAAMultiSampleCount;
+	param.MultiSampleQuality = (DWORD)GSYS.Setting.FSAAMultiSampleQuality;
+	param.hDeviceWindow = GetDisplayWindowHandle();
+
+	//	param.PresentationInterval   = GSYS.Screen.PreSetWaitVSyncFlag ? D_D3DPRESENT_INTERVAL_ONE       : D_D3DPRESENT_INTERVAL_IMMEDIATE ;
+	param.PresentationInterval = GSYS.Screen.NotWaitVSyncFlag ? D_D3DPRESENT_INTERVAL_IMMEDIATE : D_D3DPRESENT_INTERVAL_ONE;
+	param.EnableAutoDepthStencil = FALSE;
+	param.Flags = (DWORD)((D_D3DMULTISAMPLE_TYPE)GSYS.Setting.FSAAMultiSampleCount == D_D3DMULTISAMPLE_NONE ? D_D3DPRESENTFLAG_LOCKABLE_BACKBUFFER/* D_D3DPRESENTFLAG_DEVICECLIP */ : 0);
+
+	// FSAA?????f??fl???f???~??
+	if (GSYS.Setting.FSAAMultiSampleCount != 0)
+	{
+		param.MultiSampleType = (D_D3DMULTISAMPLE_TYPE)GSYS.Setting.FSAAMultiSampleCount;
+		param.MultiSampleQuality = (DWORD)GSYS.Setting.FSAAMultiSampleQuality;
+		Direct3D9_CheckMultiSampleParam(param.BackBufferFormat, &param.MultiSampleType, &param.MultiSampleQuality, FALSE);
+		GSYS.Setting.FSAAMultiSampleCount = param.MultiSampleType;
+		GSYS.Setting.FSAAMultiSampleQuality = (int)param.MultiSampleQuality;
+	}
+	else
+	{
+		GSYS.Setting.FSAAMultiSampleQuality = 0;
+		param.MultiSampleQuality = 0;
+	}
+
+	if (GD3D9.Setting.NonUseVertexHardwareProcess == TRUE)
+	{
+		if (GAPIWin.Direct3D9ExObject)
+		{
+			goto NOTUSEHARDWARE_VERTEXPROCESSINGEX;
+		}
+		else
+		{
+			goto NOTUSEHARDWARE_VERTEXPROCESSING;
+		}
+	}
+
+	// ?V?F?[?_?[?o?[?W?????g?Q?D?O???g?p???????????????
+	// ?f??g_??????????~???\?t?g?E?G?A???s??
+	Direct3D9_GetDeviceCaps((DWORD)(GSYS.Screen.ValidUseDisplayIndex ? GSYS.Screen.UseDisplayIndex : D_D3DADAPTER_DEFAULT), D_D3DDEVTYPE_HAL, &DevCaps);
+	if ((DevCaps.VertexShaderVersion & 0xffff) < 0x200 ||
+		(DevCaps.PixelShaderVersion & 0xffff) < 0x200)
+	{
+		GD3D9.Device.Caps.VertexHardwareProcess = FALSE;
+	}
+	else
+	{
+		GD3D9.Device.Caps.VertexHardwareProcess = TRUE;
+	}
+	GD3D9.Device.Shader.NativeVertexShaderVersion = DevCaps.VertexShaderVersion;
+	if (GAPIWin.Direct3D9ExObject)
+	{
+		DXST_LOGFILE_ADDUTF16LE("\x49\x00\x44\x00\x69\x00\x72\x00\x65\x00\x63\x00\x74\x00\x33\x00\x44\x00\x44\x00\x65\x00\x76\x00\x69\x00\x63\x00\x65\x00\x39\x00\x45\x00\x78\x00\x20\x00\xaa\x30\xd6\x30\xb8\x30\xa7\x30\xaf\x30\xc8\x30\x92\x30\xd6\x53\x97\x5f\x57\x30\x7e\x30\x59\x30\x2e\x00\x2e\x00\x2e\x00\x2e\x00\x20\x00\x00"/*@ L"IDirect3DDevice9Ex ?I?u?W?F?N?g?????g???????.... " @*/);
+
+		hr = GAPIWin.Direct3DDevice9ExObject->ResetEx(
+			&param,
+			param.Windowed ? NULL : &DisplayModeEx
+		);
+		if (FAILED(hr))
+		{
+		NOTUSEHARDWARE_VERTEXPROCESSINGEX:
+			GD3D9.Device.Caps.VertexHardwareProcess = FALSE;
+
+			// ??????????????????\?t?g?E?G?A?v???Z?b?V??g?O
+			hr = GAPIWin.Direct3DDevice9ExObject->ResetEx(
+				&param,
+				param.Windowed ? NULL : &DisplayModeEx
+			);
+			if (FAILED(hr))
+			{
+				GD3D9.Setting.NotUseDirect3D9Ex = TRUE;
+
+				DXST_LOGFILE_ADDUTF16LE("\x44\x00\x69\x00\x72\x00\x65\x00\x63\x00\x74\x00\x33\x00\x44\x00\x44\x00\x65\x00\x76\x00\x69\x00\x63\x00\x65\x00\x39\x00\x45\x00\x78\x00\x20\x00\x6e\x30\x5c\x4f\x10\x62\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Direct3DDevice9Ex ???????????hs????????\n" @*/);
+				ErrorRet = -2;
+				goto ERR;
+			}
+			else
+			{
+				DXST_LOGFILE_ADDUTF16LE("\xbd\x30\xd5\x30\xc8\x30\xa6\x30\xa8\x30\xa2\x30\x02\x98\xb9\x70\x14\x6f\x97\x7b\x92\x30\x7f\x4f\x28\x75\x57\x30\x7e\x30\x59\x30\x0a\x00\x00"/*@ L"?\?t?g?E?G?A?f??g_?????Z???g?p??????\n" @*/);
+			}
+		}
+		else
+		{
+			DXST_LOGFILE_ADDUTF16LE("\xcf\x30\xfc\x30\xc9\x30\xa6\x30\xa8\x30\xa2\x30\x02\x98\xb9\x70\x14\x6f\x97\x7b\x92\x30\x7f\x4f\x28\x75\x57\x30\x7e\x30\x59\x30\x0a\x00\x00"/*@ L"?n?[?h?E?G?A?f??g_?????Z???g?p??????\n" @*/);
+		}
+		GAPIWin.Direct3DDevice9Object = GAPIWin.Direct3DDevice9ExObject;
+
+		// ????g?_????g?O???????????t???[????h????????????
+		GAPIWin.Direct3DDevice9ExObject->SetMaximumFrameLatency(1);
+	}
+	else
+	{
+		DXST_LOGFILE_ADDUTF16LE("\x49\x00\x44\x00\x69\x00\x72\x00\x65\x00\x63\x00\x74\x00\x33\x00\x44\x00\x44\x00\x65\x00\x76\x00\x69\x00\x63\x00\x65\x00\x39\x00\x20\x00\xaa\x30\xd6\x30\xb8\x30\xa7\x30\xaf\x30\xc8\x30\x92\x30\xd6\x53\x97\x5f\x57\x30\x7e\x30\x59\x30\x2e\x00\x2e\x00\x2e\x00\x2e\x00\x20\x00\x00"/*@ L"IDirect3DDevice9 ?I?u?W?F?N?g?????g???????.... " @*/);
+
+		hr = GAPIWin.Direct3DDevice9Object->Reset(
+			&param
+		);
+		if (FAILED(hr))
+		{
+		NOTUSEHARDWARE_VERTEXPROCESSING:
+			GD3D9.Device.Caps.VertexHardwareProcess = FALSE;
+
+			// ??????????????????\?t?g?E?G?A?v???Z?b?V??g?O
+			hr = GAPIWin.Direct3DDevice9Object->Reset(
+				&param
+			);
+			
+			if (FAILED(hr))
+			{
+				DXST_LOGFILE_ADDUTF16LE("\x44\x00\x69\x00\x72\x00\x65\x00\x63\x00\x74\x00\x33\x00\x44\x00\x44\x00\x65\x00\x76\x00\x69\x00\x63\x00\x65\x00\x39\x00\x20\x00\x6e\x30\x5c\x4f\x10\x62\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Direct3DDevice9 ???????????hs????????\n" @*/);
+				goto ERR;
+			}
+			else
+			{
+				DXST_LOGFILE_ADDUTF16LE("\xbd\x30\xd5\x30\xc8\x30\xa6\x30\xa8\x30\xa2\x30\x02\x98\xb9\x70\x14\x6f\x97\x7b\x92\x30\x7f\x4f\x28\x75\x57\x30\x7e\x30\x59\x30\x0a\x00\x00"/*@ L"?\?t?g?E?G?A?f??g_?????Z???g?p??????\n" @*/);
+			}
+		}
+		else
+		{
+			DXST_LOGFILE_ADDUTF16LE("\xcf\x30\xfc\x30\xc9\x30\xa6\x30\xa8\x30\xa2\x30\x02\x98\xb9\x70\x14\x6f\x97\x7b\x92\x30\x7f\x4f\x28\x75\x57\x30\x7e\x30\x59\x30\x0a\x00\x00"/*@ L"?n?[?h?E?G?A?f??g_?????Z???g?p??????\n" @*/);
+		}
+	}
+
+	// ?o?b?N?o?b?t?@??????????
+	{
+		DWORD ClearColor;
+
+		// ?t???X?N???[??g???[?h?????t???X?N???[??g????e??gx???[?h?? DX_FSRESOLUTIONMODE_NATIVE ???O??????????K???^??????????????????
+		if (NS_GetWindowModeFlag() == FALSE && GSYS.Screen.FullScreenResolutionModeAct != DX_FSRESOLUTIONMODE_NATIVE)
+		{
+			ClearColor = 0;
+		}
+		else
+		{
+			ClearColor = ((DWORD)GSYS.Screen.BackgroundAlpha << 24) | ((DWORD)GSYS.Screen.BackgroundRed << 16) | ((DWORD)GSYS.Screen.BackgroundGreen << 8) | (DWORD)GSYS.Screen.BackgroundBlue;
+		}
+
+		Direct3DDevice9_SetRenderState(D_D3DRS_ZENABLE, D_D3DZB_TRUE);
+		Direct3DDevice9_Clear(0, NULL, D_D3DCLEAR_TARGET, ClearColor, 1.0f, 0);
+		hr = GAPIWin.Direct3DDevice9Object->Present(NULL, NULL, GetDisplayWindowHandle(), NULL);
+		Direct3DDevice9_Clear(0, NULL, D_D3DCLEAR_TARGET, ClearColor, 1.0f, 0);
+		hr = GAPIWin.Direct3DDevice9Object->Present(NULL, NULL, GetDisplayWindowHandle(), NULL);
+		Direct3DDevice9_Clear(0, NULL, D_D3DCLEAR_TARGET, ClearColor, 1.0f, 0);
+		hr = GAPIWin.Direct3DDevice9Object->Present(NULL, NULL, GetDisplayWindowHandle(), NULL);
+		Direct3DDevice9_Clear(0, NULL, D_D3DCLEAR_TARGET, ClearColor, 1.0f, 0);
+	}
+
+	// ?X???b?v?`?F?C??g???A?h???X?????g?
+	GAPIWin.Direct3DDevice9Object->GetSwapChain(0, &GAPIWin.Direct3DSwapChain9Object);
+
+	CL_strcpy(WCHAR_T_CHARCODEFORMAT, (char*)WinData.PcInfo.DirectXString, (char*)L"DirectX 9");
+
+	// ?????I??
+	return 0;
+
+	// ?G????[????
+ERR:
+	return ErrorRet;
+}
+
+// ?}???`?T??g?v??????g?_????g?O???T??g?v????h???N?I???e?B???`?F?b?N
 extern int Direct3D9_CheckMultiSampleParam( D_D3DFORMAT Format, D_D3DMULTISAMPLE_TYPE *Samples, DWORD *Quality, int SamplesFailedBreak )
 {
 	DWORD ColorBufferQuality, ZBufferQuality, MaxQuality ;
 
-	// カラーバッファで使用できるマルチサンプルタイプとその際のクオリティを取得する
+	// ?J????[?o?b?t?@???g?p???????}???`?T??g?v???^?C?v???????????N?I???e?B?????g?????
 	ColorBufferQuality = 0 ;
 	for(;;)
 	{
@@ -4581,14 +4850,14 @@ extern int Direct3D9_CheckMultiSampleParam( D_D3DFORMAT Format, D_D3DMULTISAMPLE
 		if( *Samples == D_D3DMULTISAMPLE_NONE ) break ;
 	}
 
-	// 使用できるマルチサンプルタイプが無かったら終了
+	// ?g?p???????}???`?T??g?v???^?C?v?????????????I??
 	if( *Samples == D_D3DMULTISAMPLE_NONE )
 	{
 		*Quality = 0 ;
 		return 0 ;
 	}
 
-	// Ｚバッファで使用できるマルチサンプルタイプとその際のクオリティを取得する
+	// ?y?o?b?t?@???g?p???????}???`?T??g?v???^?C?v???????????N?I???e?B?????g?????
 	ZBufferQuality = 0 ;
 	for(;;)
 	{
@@ -4605,18 +4874,18 @@ extern int Direct3D9_CheckMultiSampleParam( D_D3DFORMAT Format, D_D3DMULTISAMPLE
 		if( *Samples == D_D3DMULTISAMPLE_NONE ) break ;
 	}
 
-	// 使用できるマルチサンプルタイプが無かったら終了
+	// ?g?p???????}???`?T??g?v???^?C?v?????????????I??
 	if( *Samples == D_D3DMULTISAMPLE_NONE )
 	{
 		*Quality = 0 ;
 		return 0 ;
 	}
 
-	// クオリティは低いほうに合わせる
+	// ?N?I???e?B???f??????????????????
 	MaxQuality = ( ZBufferQuality < ColorBufferQuality ? ZBufferQuality : ColorBufferQuality ) - 1 ;
 	if( *Quality > MaxQuality ) *Quality = MaxQuality ;
 
-	// 終了
+	// ?I??
 	return 0 ;
 }
 
@@ -4644,7 +4913,7 @@ extern long Direct3DDevice9_SetDialogBoxMode( BOOL bEnableDialogs )
 
 extern int Direct3DDevice9_Release( void )
 {
-	// スワップチェインの解放
+	// ?X???b?v?`?F?C??g???????
 	if( GAPIWin.Direct3DSwapChain9Object )
 	{
 		GAPIWin.Direct3DSwapChain9Object->Release() ;
@@ -4653,13 +4922,13 @@ extern int Direct3DDevice9_Release( void )
 
 	if( GAPIWin.Direct3DDevice9Object )
 	{
-		DXST_LOGFILE_ADDUTF16LE( "\x44\x00\x69\x00\x72\x00\x65\x00\x63\x00\x74\x00\x33\x00\x44\x00\x44\x00\x65\x00\x76\x00\x69\x00\x63\x00\x65\x00\x39\x00\x20\x00\x6e\x30\xe3\x89\x3e\x65\x20\x00\x32\x00\x0a\x00\x00"/*@ L"Direct3DDevice9 の解放 2\n" @*/ ) ;
+		DXST_LOGFILE_ADDUTF16LE( "\x44\x00\x69\x00\x72\x00\x65\x00\x63\x00\x74\x00\x33\x00\x44\x00\x44\x00\x65\x00\x76\x00\x69\x00\x63\x00\x65\x00\x39\x00\x20\x00\x6e\x30\xe3\x89\x3e\x65\x20\x00\x32\x00\x0a\x00\x00"/*@ L"Direct3DDevice9 ??????? 2\n" @*/ ) ;
 
 		GAPIWin.Direct3DDevice9Object->Release() ;
 		GAPIWin.Direct3DDevice9Object = NULL ;
 	}
 
-	// 正常終了
+	// ?????I??
 	return 0 ;
 }
 
@@ -4923,7 +5192,7 @@ extern long Direct3DDevice9_SetPixelShaderConstantB( UINT StartRegister, CONST B
 	return GAPIWin.Direct3DDevice9Object->SetPixelShaderConstantB( StartRegister, pConstantData,  BoolCount) ;
 }
 
-// テンポラリプライマリバッファの内容をプライマリバッファに転送するコールバック関数
+// ?e??g?|??????v????C?}???o?b?t?@???g??e???v????C?}???o?b?t?@???g]?e??????R?[???o?b?N????h
 #if _MSC_VER > 1200 || defined( DX_GCC_COMPILE_4_9_2 )
 static VOID CALLBACK ScreenFlipTimerProc( HWND /*hwnd*/, UINT /*uMsg*/, UINT_PTR /*idEvent*/, DWORD /*dwTime*/ )
 #else
@@ -4947,20 +5216,20 @@ static VOID CALLBACK ScreenFlipTimerProc( HWND /*hwnd*/, UINT /*uMsg*/, UINT /*i
 	}
 }
 
-// サブバックバッファの内容をバックバッファに拡大転送する
+// ?T?u?o?b?N?o?b?t?@???g??e???o?b?N?o?b?t?@???g?e??g]?e?????
 static int Direct3DDevice9_ScalingSubBackbuffer( const RECT *SubBackBufferSrcRect )
 {
 	HRESULT hr ;
 
-	// 転送先矩形のセットアップ
+	// ?g]?e??????`???Z?b?g?A?b?v
 	Graphics_Screen_SetupFullScreenScalingDestRect() ;
 
-	// サブバックバッファテクスチャがない場合は単純転送
+	// ?T?u?o?b?N?o?b?t?@?e?N?X?`????????????????fP???g]?e?
 	if( GD3D9.Device.Screen.SubBackBufferTexture == NULL )
 	{
 		D_D3DTEXTUREFILTERTYPE StretchType ;
 
-		// 転送時の拡大方式を決定
+		// ?g]?e??????g?e??????????f?
 		StretchType = D_D3DTEXF_POINT ;
 		switch( GSYS.Screen.FullScreenScalingMode )
 		{
@@ -4985,7 +5254,7 @@ static int Direct3DDevice9_ScalingSubBackbuffer( const RECT *SubBackBufferSrcRec
 			break ;
 		}
 
-		// サブバックバッファと本バックバッファのサイズが異なる場合は本バックバッファを先にクリアする
+		// ?T?u?o?b?N?o?b?t?@???{?o?b?N?o?b?t?@???T?C?Y????????????????{?o?b?N?o?b?t?@???????N???A????
 		if( ( GSYS.Screen.FullScreenScalingDestRect.right - GSYS.Screen.FullScreenScalingDestRect.left ) != ( DWORD )GD3D9.Device.Screen.SubBackBufferTextureSizeX ||
 			( GSYS.Screen.FullScreenScalingDestRect.bottom - GSYS.Screen.FullScreenScalingDestRect.top ) != ( DWORD )GD3D9.Device.Screen.SubBackBufferTextureSizeY )
 		{
@@ -4996,55 +5265,55 @@ static int Direct3DDevice9_ScalingSubBackbuffer( const RECT *SubBackBufferSrcRec
 			D_D3DTEXTUREFILTERTYPE                BackupMagFilter ;
 			D_D3DTEXTUREFILTERTYPE                BackupMinFilter ;
 
-			// フィルタリングモードを保存
+			// ?t?B???^????g?O???[?h?????e???
 			BackupMagFilter = GD3D9.Device.State.MagFilter[ 0 ] ;
 			BackupMinFilter = GD3D9.Device.State.MinFilter[ 0 ] ;
 
-			// ビューポート設定の保存
+			// ?r??c?[?|?[?g???f??????e???
 			BackupViewport = GD3D9.Device.State.Viewport ;
 
-			// 描画先の保存
+			// ?`??????????e???
 			for( i = 0 ; i < DX_RENDERTARGET_COUNT ; i ++ )
 			{
 				BackupTargetSurface[ i ] = GD3D9.Device.State.TargetSurface[ i ] ;
 			}
 
-			// 描画先を変更
+			// ?`??????????X
 			Graphics_D3D9_DeviceState_SetRenderTarget( GD3D9.Device.Screen.BackBufferSurface, 0 ) ;
 			for( i = 1 ; i < DX_RENDERTARGET_COUNT ; i ++ )
 			{
 				Graphics_D3D9_DeviceState_SetRenderTarget( NULL, i ) ;
 			}
 
-			// バックバッファをクリア
+			// ?o?b?N?o?b?t?@???N???A
 			DWORD ClearColor = ( ( DWORD )GSYS.Screen.BackgroundAlpha << 24 ) | ( ( DWORD )GSYS.Screen.BackgroundRed << 16 ) | ( ( DWORD )GSYS.Screen.BackgroundGreen << 8 ) | ( DWORD )GSYS.Screen.BackgroundBlue ;
 			Direct3DDevice9_Clear( 0, NULL, D_D3DCLEAR_TARGET, ClearColor, 1.0f, 0 ) ;
 
-			// Ｚバッファを使用しない設定にする
+			// ?y?o?b?t?@???g?p?????????f???????
 			BackupUseZBufferFlag = GD3D9.Device.State.ZEnable ;
 			Graphics_D3D9_DeviceState_SetZEnable( FALSE ) ;
 
-			// 描画先を元に戻す
+			// ?`???????????????
 			for( i = 0 ; i < DX_RENDERTARGET_COUNT ; i ++ )
 			{
 				Graphics_D3D9_DeviceState_SetRenderTarget( BackupTargetSurface[ i ], i ) ;
 			}
 
-			// フィルタリングモードを元に戻す
+			// ?t?B???^????g?O???[?h??????????
 			Direct3DDevice9_SetSamplerState( 0, D_D3DSAMP_MAGFILTER, BackupMagFilter ) ;
 			Direct3DDevice9_SetSamplerState( 0, D_D3DSAMP_MINFILTER, BackupMinFilter ) ;
 
-			// Ｚバッファの設定を元に戻す
+			// ?y?o?b?t?@?????f???????????
 			Graphics_D3D9_DeviceState_SetZEnable( BackupUseZBufferFlag ) ;
 
-			// ビューポート設定を元に戻す
+			// ?r??c?[?|?[?g???f???????????
 			GD3D9.Device.DrawSetting.CancelSettingEqualCheck = TRUE ;
 			Graphics_D3D9_DeviceState_SetViewport( &BackupViewport ) ;
 			GD3D9.Device.DrawSetting.CancelSettingEqualCheck = FALSE ;
 		}
 
-		// サブバックバッファの内容をバックバッファに転送
-//		DXST_LOGFILEFMT_ADDW(( L"パラメータ StretchType( %d ) SrcRect( %d, %d, %d, %d ), DestRect( %d, %d, %d, %d )",
+		// ?T?u?o?b?N?o?b?t?@???g??e???o?b?N?o?b?t?@???g]?e?
+//		DXST_LOGFILEFMT_ADDW(( L"?p??????[?^ StretchType( %d ) SrcRect( %d, %d, %d, %d ), DestRect( %d, %d, %d, %d )",
 //			StretchType,
 //			SubBackBufferSrcRect.left,
 //			SubBackBufferSrcRect.top,
@@ -5064,54 +5333,69 @@ static int Direct3DDevice9_ScalingSubBackbuffer( const RECT *SubBackBufferSrcRec
 		) ;
 		if( hr != D_D3D_OK )
 		{
-			DXST_LOGFILEFMT_ADDUTF16LE(( "\x44\x00\x69\x00\x72\x00\x65\x00\x63\x00\x74\x00\x33\x00\x44\x00\x44\x00\x65\x00\x76\x00\x69\x00\x63\x00\x65\x00\x39\x00\x20\x00\x53\x00\x74\x00\x72\x00\x65\x00\x74\x00\x63\x00\x68\x00\x52\x00\x65\x00\x63\x00\x74\x00\x20\x00\x31\x59\x57\x65\x20\x00\x87\x7b\x40\x62\x13\xff\x20\x00\x3b\x62\x8a\x30\x24\x50\x20\x00\x30\x00\x78\x00\x25\x00\x30\x00\x38\x00\x78\x00\x00"/*@ L"Direct3DDevice9 StretchRect 失敗 箇所３ 戻り値 0x%08x" @*/, hr )) ;
+			DXST_LOGFILEFMT_ADDUTF16LE(( "\x44\x00\x69\x00\x72\x00\x65\x00\x63\x00\x74\x00\x33\x00\x44\x00\x44\x00\x65\x00\x76\x00\x69\x00\x63\x00\x65\x00\x39\x00\x20\x00\x53\x00\x74\x00\x72\x00\x65\x00\x74\x00\x63\x00\x68\x00\x52\x00\x65\x00\x63\x00\x74\x00\x20\x00\x31\x59\x57\x65\x20\x00\x87\x7b\x40\x62\x13\xff\x20\x00\x3b\x62\x8a\x30\x24\x50\x20\x00\x30\x00\x78\x00\x25\x00\x30\x00\x38\x00\x78\x00\x00"/*@ L"Direct3DDevice9 StretchRect ???hs ??????R ?????fl 0x%08x" @*/, hr )) ;
 			return -1 ;
 		}
 	}
 	else
 	{
-		// テクスチャがある場合はバックバッファに描画
-		int                                   i ;
-		VERTEX_2D                             Vert[ 4 ] ;
-		GRAPHICS_HARDDATA_DIRECT3D9_BLENDINFO BlendInfo ;
-		int                                   BackupUseZBufferFlag ;
-		D_IDirect3DSurface9                   *BackupTargetSurface[ DX_RENDERTARGET_COUNT ] ;
-		D_D3DVIEWPORT9                        BackupViewport ;
-		D_D3DTEXTUREFILTERTYPE                BackupMagFilter ;
-		D_D3DTEXTUREFILTERTYPE                BackupMinFilter ;
+		// ?e?N?X?`????????????????o?b?N?o?b?t?@???`???
+		int                                   i;
+		VERTEX_2D                             Vert[4];
+		GRAPHICS_HARDDATA_DIRECT3D9_BLENDINFO BlendInfo;
+		int                                   BackupUseZBufferFlag;
+		D_IDirect3DSurface9* BackupTargetSurface[DX_RENDERTARGET_COUNT];
+		D_D3DVIEWPORT9                        BackupViewport;
+		D_D3DTEXTUREFILTERTYPE                BackupMagFilter;
+		D_D3DTEXTUREFILTERTYPE                BackupMinFilter;
 
-		// フィルタリングモードを保存
-		BackupMagFilter = GD3D9.Device.State.MagFilter[ 0 ] ;
-		BackupMinFilter = GD3D9.Device.State.MinFilter[ 0 ] ;
+		// ?t?B???^????g?O???[?h?????e???
+		BackupMagFilter = GD3D9.Device.State.MagFilter[0];
+		BackupMinFilter = GD3D9.Device.State.MinFilter[0];
 
-		// ビューポート設定の保存
-		BackupViewport = GD3D9.Device.State.Viewport ;
+		// ?r??c?[?|?[?g???f??????e???
+		BackupViewport = GD3D9.Device.State.Viewport;
 
-		// 描画先の保存
-		for( i = 0 ; i < DX_RENDERTARGET_COUNT ; i ++ )
+		// ?`??????????e???
+		for (i = 0; i < DX_RENDERTARGET_COUNT; i++)
 		{
-			BackupTargetSurface[ i ] = GD3D9.Device.State.TargetSurface[ i ] ;
+			BackupTargetSurface[i] = GD3D9.Device.State.TargetSurface[i];
 		}
 
-		// 描画先を変更
-		Graphics_D3D9_DeviceState_SetRenderTarget( GD3D9.Device.Screen.BackBufferSurface, 0 ) ;
-		for( i = 1 ; i < DX_RENDERTARGET_COUNT ; i ++ )
+		// ?`??????????X
+		Graphics_D3D9_DeviceState_SetRenderTarget(GD3D9.Device.Screen.BackBufferSurface, 0);
+		for (i = 1; i < DX_RENDERTARGET_COUNT; i++)
 		{
-			Graphics_D3D9_DeviceState_SetRenderTarget( NULL, i ) ;
+			Graphics_D3D9_DeviceState_SetRenderTarget(NULL, i);
 		}
 
-		// サブバックバッファと本バックバッファのサイズが異なる場合は本バックバッファを先にクリアする
-		if( ( GSYS.Screen.FullScreenScalingDestRect.right - GSYS.Screen.FullScreenScalingDestRect.left ) != ( DWORD )GD3D9.Device.Screen.SubBackBufferTextureSizeX ||
-			( GSYS.Screen.FullScreenScalingDestRect.bottom - GSYS.Screen.FullScreenScalingDestRect.top ) != ( DWORD )GD3D9.Device.Screen.SubBackBufferTextureSizeY )
+		// ?T?u?o?b?N?o?b?t?@???{?o?b?N?o?b?t?@???T?C?Y????????????????{?o?b?N?o?b?t?@???????N???A????
+		if ((GSYS.Screen.FullScreenScalingDestRect.right - GSYS.Screen.FullScreenScalingDestRect.left) != (DWORD)GD3D9.Device.Screen.SubBackBufferTextureSizeX ||
+			(GSYS.Screen.FullScreenScalingDestRect.bottom - GSYS.Screen.FullScreenScalingDestRect.top) != (DWORD)GD3D9.Device.Screen.SubBackBufferTextureSizeY)
 		{
-			DWORD ClearColor = ( ( DWORD )GSYS.Screen.BackgroundAlpha << 24 ) | ( ( DWORD )GSYS.Screen.BackgroundRed << 16 ) | ( ( DWORD )GSYS.Screen.BackgroundGreen << 8 ) | ( DWORD )GSYS.Screen.BackgroundBlue ;
-			Direct3DDevice9_Clear( 0, NULL, D_D3DCLEAR_TARGET, ClearColor, 1.0f, 0 ) ;
+			DWORD ClearColor = ((DWORD)GSYS.Screen.BackgroundAlpha << 24) | ((DWORD)GSYS.Screen.BackgroundRed << 16) | ((DWORD)GSYS.Screen.BackgroundGreen << 8) | (DWORD)GSYS.Screen.BackgroundBlue;
+			Direct3DDevice9_Clear(0, NULL, D_D3DCLEAR_TARGET, ClearColor, 1.0f, 0);
 		}
 
-		// 描画準備
-		Graphics_D3D9_BeginScene() ;
+		// ?`??????h?
+		Graphics_D3D9_BeginScene();
 
-		// フィルタリングモードを設定
+		static D_IDirect3DPixelShader9* crt_shader = []() {
+#include "..\resource.h"
+			D_IDirect3DPixelShader9* res = nullptr;
+			HMODULE selfModule{};
+			GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS, reinterpret_cast<LPCWSTR>(DxLib_Init), &selfModule);
+			auto resFind = FindResourceW(selfModule, MAKEINTRESOURCEW(IDR_SHADER_CRT), L"SHADER");
+			auto resource = LoadResource(selfModule,
+				FindResourceW(selfModule, MAKEINTRESOURCEW(IDR_SHADER_CRT), L"SHADER"));
+			if (resource == NULL) return res;
+			HRESULT hr = Direct3DDevice9_CreatePixelShader(reinterpret_cast<DWORD*>(LockResource(resource)), &res);
+			if (!SUCCEEDED(hr)) res = nullptr;
+			FreeResource(resource);
+			return res;
+		}();
+
+		// ?t?B???^????g?O???[?h?????f?
 		switch( GSYS.Screen.FullScreenScalingMode )
 		{
 		default :
@@ -5124,19 +5408,25 @@ static int Direct3DDevice9_ScalingSubBackbuffer( const RECT *SubBackBufferSrcRec
 			Direct3DDevice9_SetSamplerState( 0, D_D3DSAMP_MAGFILTER, D_D3DTEXF_POINT ) ;
 			Direct3DDevice9_SetSamplerState( 0, D_D3DSAMP_MINFILTER, D_D3DTEXF_POINT ) ;
 			break ;
+
+		case DX_FSSCALINGMODE_CRT:
+			Direct3DDevice9_SetSamplerState(0, D_D3DSAMP_MAGFILTER, D_D3DTEXF_NONE);
+			Direct3DDevice9_SetSamplerState(0, D_D3DSAMP_MINFILTER, D_D3DTEXF_NONE);
+			break;
 		}
 
-		// Ｚバッファを使用しない設定にする
+
+		// ?y?o?b?t?@???g?p?????????f???????
 		BackupUseZBufferFlag = GD3D9.Device.State.ZEnable ;
 		Graphics_D3D9_DeviceState_SetZEnable( FALSE ) ;
 
-		// シェーダーがセットされていたらはずす
+		// ?V?F?[?_?[???Z?b?g??????????????????
 		Graphics_D3D9_DeviceState_ResetVertexShader() ;
 		Graphics_D3D9_DeviceState_ResetPixelShader() ;
 		Graphics_D3D9_DeviceState_SetVertexBuffer( NULL ) ;
 		Graphics_D3D9_DeviceState_SetIndexBuffer( NULL ) ;
 
-		// ブレンド情報の設定
+		// ?u????g?h?????????f?
 		_MEMSET( &BlendInfo, 0, sizeof( BlendInfo ) ) ;
 		BlendInfo.AlphaTestEnable          = FALSE ;
 		BlendInfo.AlphaRef                 = 0 ;
@@ -5172,11 +5462,21 @@ static int Direct3DDevice9_ScalingSubBackbuffer( const RECT *SubBackBufferSrcRec
 		BlendInfo.TextureStageInfo[ 1 ].AlphaARG2         = D_D3DTA_DIFFUSE ;
 		BlendInfo.TextureStageInfo[ 1 ].AlphaOP           = D_D3DTOP_DISABLE ;
 
-		Graphics_D3D9_DeviceState_SetUserBlendInfo( &BlendInfo, FALSE, FALSE, FALSE ) ;
+		Graphics_D3D9_DeviceState_SetUserBlendInfo(&BlendInfo, FALSE, FALSE, FALSE);
 
-		// 単純拡大転送
+		if (GSYS.Screen.FullScreenScalingMode == DX_FSSCALINGMODE_CRT && crt_shader) {
+			Direct3DDevice9_SetPixelShader(crt_shader);
+			Direct3DDevice9_SetTexture(0, GD3D9.Device.Screen.SubBackBufferTexture);
+			float inoutsize[4] = { GD3D9.Device.Screen.SubBackBufferTextureSizeX, GD3D9.Device.Screen.SubBackBufferTextureSizeY,
+				 GSYS.Screen.FullScreenUseDispModeData.Width, GSYS.Screen.FullScreenUseDispModeData.Height };
+			float scale[4] = { inoutsize[2] / inoutsize[0], inoutsize[3] / inoutsize[1], 0.f, 0.f };
+			Direct3DDevice9_SetPixelShaderConstantF(0, inoutsize, 1);
+			Direct3DDevice9_SetPixelShaderConstantF(1, scale, 1);
+		}
 
-		// 頂点の準備
+		// ?fP???g?e??g]?e?
+
+		// ?f??g_?????h?
 		Vert[ 2 ].pos.x = Vert[ 0 ].pos.x = ( float )GSYS.Screen.FullScreenScalingDestRect.left   - 0.5f ;
 		Vert[ 1 ].pos.y = Vert[ 0 ].pos.y = ( float )GSYS.Screen.FullScreenScalingDestRect.top    - 0.5f ;
 
@@ -5203,38 +5503,39 @@ static int Direct3DDevice9_ScalingSubBackbuffer( const RECT *SubBackBufferSrcRec
 		Vert[ 2 ].rhw = 
 		Vert[ 3 ].rhw = 1.0f ;
 
-		// 描画
+		// ?`???
 		Graphics_D3D9_DeviceState_SetFVF( VERTEXFVF_2D ) ;
 		Direct3DDevice9_DrawPrimitiveUP( D_D3DPT_TRIANGLESTRIP, 2, Vert, sizeof( VERTEX_2D ) ) ;
 
-		// 描画処理終了
+		// ?`????????I??
 		Graphics_D3D9_EndScene() ;
 
-		// 描画先を元に戻す
+		// ?`???????????????
 		for( i = 0 ; i < DX_RENDERTARGET_COUNT ; i ++ )
 		{
 			Graphics_D3D9_DeviceState_SetRenderTarget( BackupTargetSurface[ i ], i ) ;
 		}
 
-		// フィルタリングモードを元に戻す
+		// ?t?B???^????g?O???[?h??????????
 		Direct3DDevice9_SetSamplerState( 0, D_D3DSAMP_MAGFILTER, BackupMagFilter ) ;
 		Direct3DDevice9_SetSamplerState( 0, D_D3DSAMP_MINFILTER, BackupMinFilter ) ;
 
-		// Ｚバッファの設定を元に戻す
+		// ?y?o?b?t?@?????f???????????
 		Graphics_D3D9_DeviceState_SetZEnable( BackupUseZBufferFlag ) ;
 
-		// ビューポート設定を元に戻す
+		// ?r??c?[?|?[?g???f???????????
 		GD3D9.Device.DrawSetting.CancelSettingEqualCheck = TRUE ;
 		Graphics_D3D9_DeviceState_SetViewport( &BackupViewport ) ;
 		GD3D9.Device.DrawSetting.CancelSettingEqualCheck = FALSE ;
 	}
 
-	// 正常終了
+	// ?????I??
 	return 0 ;
 }
 
 extern int Direct3DDevice9_Present( void )
 {
+	if (!SUCCEEDED(GAPIWin.Direct3DDevice9Object->TestCooperativeLevel())) return 0;
 	RECT WindRect ;
 	RECT ScreenRect ;
 	int  DrawScreenWidth ;
@@ -5243,7 +5544,7 @@ extern int Direct3DDevice9_Present( void )
 
 	SETUP_WIN_API
 
-	// 転送元となる画面の矩形をセット
+	// ?g]?e???????????????????`???Z?b?g
 	{
 		NS_GetDrawScreenSize( &DrawScreenWidth, &DrawScreenHeight ) ;
 		ScreenRect.left   = 0 ;
@@ -5252,10 +5553,10 @@ extern int Direct3DDevice9_Present( void )
 		ScreenRect.bottom = GSYS.Screen.MainScreenSizeY ;
 	}
 
-	// ウインドウモードの場合は転送先ウインドウのデスクトップ上の座標を割り出す
+	// ?E?C??g?h?E???[?h??????????g]?e????E?C??g?h?E???f?X?N?g?b?v???????W???????o??
 	if( NS_GetWindowModeFlag() == TRUE || NS_GetUseFullScreenResolutionMode() == DX_FSRESOLUTIONMODE_BORDERLESS_WINDOW )
 	{
-		// メインウインドウ以外への転送の場合は最大化関係なし
+		// ???C??g?E?C??g?h?E???O?????g]?e?????????????e???????W????
 		if( GRAWIN.Setting.ScreenFlipTargetWindow != NULL )
 		{
 			WindRect.left   = 0 ;
@@ -5329,13 +5630,13 @@ extern int Direct3DDevice9_Present( void )
 		WindRect.bottom = GSYS.Screen.MainScreenSizeY ;
 	}
 
-	// 描画待機している描画物を描画
+	// ?`????e??@?????????`?????N???`???
 	DRAWSTOCKINFO
 
-	// 描画を終わらせる
+	// ?`??????I????????
 	Graphics_D3D9_EndScene();
 
-	// バックバッファの透過色の部分を透過するフラグか、UpdateLayerdWindow を使用するフラグが立っている場合は処理を分岐
+	// ?o?b?N?o?b?t?@???g??????F????h?????g??????????t????O???AUpdateLayerdWindow ???g?p?????t????O??????????????????????????????
 	if( WinData.BackBufferTransColorFlag || WinData.UseUpdateLayerdWindowFlag )
 	{
 		BASEIMAGE BackBufferImage ;
@@ -5343,10 +5644,10 @@ extern int Direct3DDevice9_Present( void )
 		int       OldTargetScreen ;
 		int       OldTargetScreenSurfaceIndex ;
 
-		// ＶＳＹＮＣを待つ	
+		// ?u?r?x?m?b???e???	
 		if( GSYS.Screen.NotWaitVSyncFlag == FALSE ) DirectDraw7_LocalWaitVSync() ;
 
-		// Graphics_Screen_LockDrawScreen を使う方法
+		// Graphics_Screen_LockDrawScreen ???g?????@
 		OldTargetScreen                           = GSYS.DrawSetting.TargetScreen[ 0 ] ;
 		OldTargetScreenSurfaceIndex               = GSYS.DrawSetting.TargetScreenSurface [ 0 ] ;
 		GSYS.DrawSetting.TargetScreen[ 0 ]        = DX_SCREEN_BACK ;
@@ -5364,7 +5665,7 @@ extern int Direct3DDevice9_Present( void )
 	}
 	else
 	{
-		// ウインドウモードで320x240画面エミュレーションモードの場合は転送元と転送先の矩形は固定
+		// ?E?C??g?h?E???[?h??320x240??????G?~??c???[?V?????g???[?h??????????g]?e??????g]?e????????`?????f?
 		if( ( NS_GetWindowModeFlag() == TRUE || NS_GetUseFullScreenResolutionMode() == DX_FSRESOLUTIONMODE_BORDERLESS_WINDOW ) && GSYS.Screen.Emulation320x240Flag )
 		{
 			double WindowSizeExRateX ;
@@ -5383,12 +5684,12 @@ extern int Direct3DDevice9_Present( void )
 			ScreenRect.bottom = 240 ;
 		}
 
-		// サブバックバッファを使用している場合は内容をメインバックバッファに転送する
+		// ?T?u?o?b?N?o?b?t?@???g?p????????????????g??e?????C??g?o?b?N?o?b?t?@???g]?e?????
 		if( GD3D9.Device.Screen.SubBackBufferSurface != NULL )
 		{
 			RECT SubBackBufferSrcRect ;
 
-			// サブバックバッファに転送する領域を設定する
+			// ?T?u?o?b?N?o?b?t?@???g]?e??????????????f?????
 			if( GSYS.Screen.ValidGraphDisplayArea )
 			{
 				RECT ClipRect ;
@@ -5414,7 +5715,7 @@ extern int Direct3DDevice9_Present( void )
 				SubBackBufferSrcRect.bottom = GSYS.Screen.MainScreenSizeY ;
 			}
 
-			// ユーザー指定のメモリイメージがある場合はサブバックバッファに転送
+			// ????[?U?[?w?f??????????C???[?W??????????????T?u?o?b?N?o?b?t?@???g]?e?
 			if( GSYS.Screen.UserScreenImage != NULL )
 			{
 				int UseSysMemSurfaceIndex ;
@@ -5425,7 +5726,7 @@ extern int Direct3DDevice9_Present( void )
 				POINT DestPoint = { 0, 0 } ;
 				RECT DestRectT ;
 
-				// 転送用のシステムメモリサーフェスを取得
+				// ?g]?e??p???V?X?e?????????T?[?t?F?X?????g?
 				for(;;)
 				{
 					UseSysMemSurfaceIndex = Graphics_D3D9_GetSysMemSurface( GD3D9.Device.Screen.SubBackBufferTextureSizeX, GD3D9.Device.Screen.SubBackBufferTextureSizeY, GD3D9.Device.Screen.SubBackBufferTexturePixelFormat, FALSE ) ;
@@ -5439,14 +5740,14 @@ extern int Direct3DDevice9_Present( void )
 				}
 				UseSurface = GD3D9.SysMemTexSurf.Surface[ UseSysMemSurfaceIndex ].MemSurface ;
 
-				// 転送用のシステムメモリサーフェスをロック
+				// ?g]?e??p???V?X?e?????????T?[?t?F?X?????b?N
 				DestRectT.left   = 0 ;
 				DestRectT.top    = 0 ;
 				DestRectT.right  = GD3D9.Device.Screen.SubBackBufferTextureSizeX ;
 				DestRectT.bottom = GD3D9.Device.Screen.SubBackBufferTextureSizeY ;
 				Direct3DSurface9_LockRect_ASync( UseSurface, &LockRect, &DestRectT, D_D3DLOCK_DISCARD, FALSE ) ;
 
-				// 転送
+				// ?g]?e?
 				NS_GraphColorMatchBltVer2(
 					LockRect.pBits,              DestColorData->PixelByte * GD3D9.Device.Screen.SubBackBufferTextureSizeX, DestColorData,
 					GSYS.Screen.UserScreenImage, SrcColorData->PixelByte  * GD3D9.Device.Screen.SubBackBufferTextureSizeX, SrcColorData,
@@ -5458,21 +5759,21 @@ extern int Direct3DDevice9_Present( void )
 					FALSE 
 				) ;
 
-				// 転送用のシステムメモリサーフェスのロック解除
+				// ?g]?e??p???V?X?e?????????T?[?t?F?X?????b?N?????
 				Direct3DSurface9_UnlockRect_ASync( UseSurface, FALSE ) ;
 
-				// 転送用のシステムメモリサーフェスからサブバックバッファのサーフェスに転送
+				// ?g]?e??p???V?X?e?????????T?[?t?F?X?????T?u?o?b?N?o?b?t?@???T?[?t?F?X???g]?e?
 				Direct3DDevice9_UpdateSurface_ASync( UseSurface, &DestRectT, GD3D9.Device.Screen.SubBackBufferSurface, &DestPoint, FALSE ) ; 
 
-				// 転送用のシステムメモリサーフェスを解放
+				// ?g]?e??p???V?X?e?????????T?[?t?F?X???????
 				Graphics_D3D9_ReleaseSysMemSurface( UseSysMemSurfaceIndex, FALSE ) ;
 				UseSysMemSurfaceIndex = -1 ;
 			}
 
-			// ウインドウモードの場合とフルスクリーンモードの場合で処理を分岐
+			// ?E?C??g?h?E???[?h??????????t???X?N???[??g???[?h???????????????????
 			if( NS_GetWindowModeFlag() )
 			{
-				// ウインドウモードの場合はそのまま転送
+				// ?E?C??g?h?E???[?h??????????????????g]?e?
 				hr = Direct3DDevice9_StretchRect(
 						GD3D9.Device.Screen.SubBackBufferSurface,
 						&SubBackBufferSrcRect,
@@ -5482,17 +5783,17 @@ extern int Direct3DDevice9_Present( void )
 				) ;
 				if( hr != D_D3D_OK )
 				{
-					DXST_LOGFILEFMT_ADDUTF16LE(( "\x44\x00\x69\x00\x72\x00\x65\x00\x63\x00\x74\x00\x33\x00\x44\x00\x44\x00\x65\x00\x76\x00\x69\x00\x63\x00\x65\x00\x39\x00\x20\x00\x53\x00\x74\x00\x72\x00\x65\x00\x74\x00\x63\x00\x68\x00\x52\x00\x65\x00\x63\x00\x74\x00\x20\x00\x31\x59\x57\x65\x20\x00\x87\x7b\x40\x62\x11\xff\x20\x00\x3b\x62\x8a\x30\x24\x50\x20\x00\x30\x00\x78\x00\x25\x00\x30\x00\x38\x00\x78\x00\x00"/*@ L"Direct3DDevice9 StretchRect 失敗 箇所１ 戻り値 0x%08x" @*/, hr )) ;
+					DXST_LOGFILEFMT_ADDUTF16LE(( "\x44\x00\x69\x00\x72\x00\x65\x00\x63\x00\x74\x00\x33\x00\x44\x00\x44\x00\x65\x00\x76\x00\x69\x00\x63\x00\x65\x00\x39\x00\x20\x00\x53\x00\x74\x00\x72\x00\x65\x00\x74\x00\x63\x00\x68\x00\x52\x00\x65\x00\x63\x00\x74\x00\x20\x00\x31\x59\x57\x65\x20\x00\x87\x7b\x40\x62\x11\xff\x20\x00\x3b\x62\x8a\x30\x24\x50\x20\x00\x30\x00\x78\x00\x25\x00\x30\x00\x38\x00\x78\x00\x00"/*@ L"Direct3DDevice9 StretchRect ???hs ??????P ?????fl 0x%08x" @*/, hr )) ;
 					goto ERR ;
 				}
 			}
 			else
 			{
-				// フルスクリーンモードの場合はフルスクリーン解像度モードによって処理を分岐
+				// ?t???X?N???[??g???[?h??????????t???X?N???[??g????e??gx???[?h??????????????????
 				switch( GSYS.Screen.FullScreenResolutionModeAct )
 				{
 				case DX_FSRESOLUTIONMODE_NATIVE :
-					// そのまま転送
+					// ?????????g]?e?
 					hr = Direct3DDevice9_StretchRect(
 							GD3D9.Device.Screen.SubBackBufferSurface,
 							&SubBackBufferSrcRect,
@@ -5502,7 +5803,7 @@ extern int Direct3DDevice9_Present( void )
 					) ;
 					if( hr != D_D3D_OK )
 					{
-						DXST_LOGFILEFMT_ADDUTF16LE(( "\x44\x00\x69\x00\x72\x00\x65\x00\x63\x00\x74\x00\x33\x00\x44\x00\x44\x00\x65\x00\x76\x00\x69\x00\x63\x00\x65\x00\x39\x00\x20\x00\x53\x00\x74\x00\x72\x00\x65\x00\x74\x00\x63\x00\x68\x00\x52\x00\x65\x00\x63\x00\x74\x00\x20\x00\x31\x59\x57\x65\x20\x00\x87\x7b\x40\x62\x12\xff\x20\x00\x3b\x62\x8a\x30\x24\x50\x20\x00\x30\x00\x78\x00\x25\x00\x30\x00\x38\x00\x78\x00\x00"/*@ L"Direct3DDevice9 StretchRect 失敗 箇所２ 戻り値 0x%08x" @*/, hr )) ;
+						DXST_LOGFILEFMT_ADDUTF16LE(( "\x44\x00\x69\x00\x72\x00\x65\x00\x63\x00\x74\x00\x33\x00\x44\x00\x44\x00\x65\x00\x76\x00\x69\x00\x63\x00\x65\x00\x39\x00\x20\x00\x53\x00\x74\x00\x72\x00\x65\x00\x74\x00\x63\x00\x68\x00\x52\x00\x65\x00\x63\x00\x74\x00\x20\x00\x31\x59\x57\x65\x20\x00\x87\x7b\x40\x62\x12\xff\x20\x00\x3b\x62\x8a\x30\x24\x50\x20\x00\x30\x00\x78\x00\x25\x00\x30\x00\x38\x00\x78\x00\x00"/*@ L"Direct3DDevice9 StretchRect ???hs ??????Q ?????fl 0x%08x" @*/, hr )) ;
 						goto ERR ;
 					}
 					break ;
@@ -5510,10 +5811,10 @@ extern int Direct3DDevice9_Present( void )
 				case DX_FSRESOLUTIONMODE_MAXIMUM :
 				case DX_FSRESOLUTIONMODE_DESKTOP :
 				case DX_FSRESOLUTIONMODE_BORDERLESS_WINDOW :
-					// サブバックバッファの内容をピクセルの縦横比を１：１に保ちつつ最大まで拡大して転送
+					// ?T?u?o?b?N?o?b?t?@???g??e???s?N?Z?????c????h????P?F?P?????????????e??????g?e??????g]?e?
 					if( Direct3DDevice9_ScalingSubBackbuffer( &SubBackBufferSrcRect ) < 0 )
 					{
-						DXST_LOGFILEFMT_ADDUTF16LE(( "\xb5\x30\xd6\x30\xd0\x30\xc3\x30\xaf\x30\xd0\x30\xc3\x30\xd5\x30\xa1\x30\x6e\x30\x85\x51\xb9\x5b\x92\x30\xd0\x30\xc3\x30\xaf\x30\xd0\x30\xc3\x30\xd5\x30\xa1\x30\x78\x30\xe2\x8e\x01\x90\x59\x30\x8b\x30\xe6\x51\x06\x74\x4c\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x00"/*@ L"サブバックバッファの内容をバックバッファへ転送する処理が失敗しました" @*/ )) ;
+						DXST_LOGFILEFMT_ADDUTF16LE(( "\xb5\x30\xd6\x30\xd0\x30\xc3\x30\xaf\x30\xd0\x30\xc3\x30\xd5\x30\xa1\x30\x6e\x30\x85\x51\xb9\x5b\x92\x30\xd0\x30\xc3\x30\xaf\x30\xd0\x30\xc3\x30\xd5\x30\xa1\x30\x78\x30\xe2\x8e\x01\x90\x59\x30\x8b\x30\xe6\x51\x06\x74\x4c\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x00"/*@ L"?T?u?o?b?N?o?b?t?@???g??e???o?b?N?o?b?t?@???g]?e??????????????hs????????" @*/ )) ;
 						goto ERR ;
 					}
 					break ;
@@ -5521,13 +5822,13 @@ extern int Direct3DDevice9_Present( void )
 			}
 		}
 
-		// フリップ
+		// ?t???b?v
 		if( GAPIWin.Direct3DSwapChain9Object )
 		{
-			// 最小化していないときだけ Present を実行
+			// ????????????????????????? Present ?????s
 			if( WinData.WindowMinSizeFlag == FALSE )
 			{
-				// ウインドウモードかどうかで処理を分岐
+				// ?E?C??g?h?E???[?h????????????????????
 				if( NS_GetWindowModeFlag() )
 				{
 					if( GAPIWin.Direct3DSwapChain9Object->Present(
@@ -5540,14 +5841,14 @@ extern int Direct3DDevice9_Present( void )
 						goto ERR ;
 					}
 
-					// ウインドウが最大化されていて、且つ転送先がクライアント領域と等しくない場合は残りの領域を GDI を使って塗りつぶす
+					// ?E?C??g?h?E?????e???????????????A?????g]?e??????N????C?A??g?g???????g?????????????????c?????????? GDI ???g?????gh????????
 					if( GRAWIN.Setting.ScreenFlipTargetWindow == NULL &&
 						WinData.ToolBarUseFlag == FALSE &&
 						WinData.WindowMaximizeFlag &&
 						WinData.ScreenNotFitWindowSize == FALSE &&
 						WinData.WindowSizeValid == FALSE )
 					{
-						// ただし WM_PAINT メッセージが来てから何回かのみ実行
+						// ?????? WM_PAINT ???b?Z?[?W?????????????????????????s
 						if( WinData.WM_PAINTMessageFlag )
 						{
 							WinData.WM_PAINTMessageFlag = FALSE ;
@@ -5639,7 +5940,7 @@ extern int Direct3DDevice9_Present( void )
 				}
 				else
 				{
-					// フルスクリーンモードの場合は必ず画面全体を転送
+					// ?t???X?N???[??g???[?h??????????K????????eS?e????g]?e?
 					hr = GAPIWin.Direct3DSwapChain9Object->Present(
 							NULL,
 							NULL,
@@ -5653,8 +5954,8 @@ extern int Direct3DDevice9_Present( void )
 				}
 			}
 
-			// 非アクティブでも実行する設定で、VSYNC待ちをする指定をしている設定で且つ最小化されている場合はVSYNC待ちをする
-			// ( 最小化されている状態でメインループが凄い速さで空回りするのを防止する目的 )
+			// ?h??A?N?e?B?u???????s???????f????AVSYNC?e??????????w?f??????????????f???????????????????????????????VSYNC?e?????????
+			// ( ????????????????????e??????C??g???[?v???????e?????????????????????h?~???????gI )
 			if( NS_GetAlwaysRunFlag() &&
 				GSYS.Screen.NotWaitVSyncFlag == FALSE &&
 				WinData.WindowMinSizeFlag )
@@ -5664,38 +5965,38 @@ extern int Direct3DDevice9_Present( void )
 		}
 	}
 
-	// 終了
+	// ?I??
 	return 0 ;
 
 ERR:
-	// エラー終了
+	// ?G????[?I??
 	return -1;
 }
 
 extern int Direct3DDevice9_BltRectBackScreenToWindow( HWND Window, RECT BackScreenRect, RECT WindowClientRect )
 {
-	// 描画待機している描画物を描画
+	// ?`????e??@?????????`?????N???`???
 	DRAWSTOCKINFO
 
-	// 描画を終わらせる
+	// ?`??????I????????
 	Graphics_D3D9_EndScene();
 
-	// サブバックバッファを使用している場合は内容をメインバックバッファに転送する
+	// ?T?u?o?b?N?o?b?t?@???g?p????????????????g??e?????C??g?o?b?N?o?b?t?@???g]?e?????
 	if( GD3D9.Device.Screen.SubBackBufferSurface != NULL )
 	{
-		// 使っている場合
+		// ?g?????????????
 		if( Direct3DDevice9_StretchRect( GD3D9.Device.Screen.SubBackBufferSurface, NULL, GD3D9.Device.Screen.BackBufferSurface, NULL, D_D3DTEXF_NONE ) != D_D3D_OK )
 			return -1 ;
 	}
 
-	// フリップ
+	// ?t???b?v
 	if( GAPIWin.Direct3DSwapChain9Object )
 	{
 		if( GAPIWin.Direct3DSwapChain9Object->Present( &BackScreenRect, &WindowClientRect, Window, NULL, 0 ) != D_D3D_OK )
 			return -1 ;
 	}
 
-	// 終了
+	// ?I??
 	return 0 ;
 }
 
@@ -5723,7 +6024,7 @@ extern int Direct3DDevice9_SetupTimerPresent( int EnableFlag )
 
 	WinAPIData.Win32Func.SetTimerFunc( NS_GetMainWindowHandle(), SCREENFLIPTIMER_ID, 32, ScreenFlipTimerProc ) ;
 
-	// 終了
+	// ?I??
 	return 0 ;
 }
 

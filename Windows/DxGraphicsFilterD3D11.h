@@ -1,6 +1,6 @@
 // -------------------------------------------------------------------------------
 // 
-// 		ＤＸライブラリ		GraphFilter系プログラム( Direct3D11 )ヘッダファイル
+// 		?c?w?‰?C?u?‰??		GraphFilter?n?v???O?‰??( Direct3D11 )?w?b?_?t?@?C??
 // 
 // 				Ver 3.24f
 // 
@@ -17,8 +17,8 @@
 
 #ifndef DX_NON_FILTER
 
-// インクルード ------------------------------------------------------------------
-#include "../DxLib.h"
+// ?C?“?N???[?h ------------------------------------------------------------------
+#include <DxLib.h>
 #include "../DxGraphicsFilter.h"
 #include "../DxArchive_.h"
 #include "DxGraphicsD3D11.h"
@@ -30,25 +30,25 @@ namespace DxLib
 
 #endif // DX_NON_NAMESPACE
 
-// マクロ定義 --------------------------------------------------------------------
+// ?}?N??’??` --------------------------------------------------------------------
 
 
-// 構造体定義 --------------------------------------------------------------------
+// ?\‘?‘?’??` --------------------------------------------------------------------
 
-// フィルター処理用の情報構造体
+// ?t?B???^?[?????p???????\‘?‘?
 struct GRAPHFILTER_SYSTEMIFNO_DIRET3D11
 {
-	int						WorkDrawValidGrHandle[ 2 ][ 18 ][ 18 ][ 2 ] ;	// フィルター処理作業用描画可能テクスチャ[ 0:整数テクスチャ 1:浮動小数点テクスチャ ][ 幅( ２のｎ乗 ) ][ 高さ( ２のｎ乗 ) ][ 作業用２枚 ]
+	int						WorkDrawValidGrHandle[ 2 ][ 18 ][ 18 ][ 2 ] ;	// ?t?B???^?[?????????p?`‰?‰?”\?e?N?X?`??[ 0:???”?e?N?X?`?? 1:??“????”“_?e?N?X?`?? ][ ??( ?Q?????? ) ][ ????( ?Q?????? ) ][ ?????p?Q?‡ ]
 } ;
 
 
-// 内部大域変数宣言 --------------------------------------------------------------
+// “??”‘??????”???? --------------------------------------------------------------
 
 extern GRAPHFILTER_SYSTEMIFNO_DIRET3D11 GraphFilterSystemInfoD3D11 ;
 
-// 関数プロトタイプ宣言-----------------------------------------------------------
+// ???”?v???g?^?C?v????-----------------------------------------------------------
 
-// 環境依存関係
+// ??????‘¶???W
 extern int	GraphFilter_D3D11_Mono_PF(            GRAPHFILTER_INFO *Info, float Cb, float Cr ) ;
 extern int	GraphFilter_D3D11_Gauss_PF(           GRAPHFILTER_INFO *Info, int PixelWidth, float Param, float *Table ) ;
 extern int	GraphFilter_D3D11_Down_Scale_PF(      GRAPHFILTER_INFO *Info, int DivNum ) ;
@@ -68,9 +68,9 @@ extern int	GraphFilter_D3D11_Lanczos3Scale_PF(   GRAPHFILTER_INFO *Info, int Des
 extern int	GraphFilter_D3D11_SSAO_PF(            GRAPHFILTER_INFO *Info, int DepthMapGrHandle, float KernelRadius, float MinDistance, float MaxDistance, float Strength, int OcclusionColor, float OcclusionPower, int ColorMapGrHandle ) ;
 extern int	GraphFilter_D3D11_FloatColorScale_PF( GRAPHFILTER_INFO *Info, COLOR_F ColorScale, COLOR_F ColorPreSub ) ;
 
-//extern int	GraphFilter_D3D11_RectBltBase_PF( int IsBlend, int SrcGrHandle, int BlendGrHandle, int DestGrHandle, int BlendRatio, int FilterOrBlendType, int SrcX1, int SrcY1, int SrcX2, int SrcY2, int BlendX, int BlendY, int BlendPosEnable, int DestX, int DestY, va_list ParamList ) ;			// 画像のフィルター付き転送を行う( 可変引数情報付き )
+//extern int	GraphFilter_D3D11_RectBltBase_PF( int IsBlend, int SrcGrHandle, int BlendGrHandle, int DestGrHandle, int BlendRatio, int FilterOrBlendType, int SrcX1, int SrcY1, int SrcX2, int SrcY2, int BlendX, int BlendY, int BlendPosEnable, int DestX, int DestY, va_list ParamList ) ;			// ‰?‘????t?B???^?[?t??“]‘????s??( ‰??????”?????t?? )
 //extern int	GraphFilter_D3D11_RectBltBase_Timing0_PF( int SrcGrHandle, int DestGrHandle, int BlendGrHandle, int IsBlend, IMAGEDATA *TargetScreenImage ) ;
-//extern int	GraphFilter_D3D11_RectBltBase_PF(     GRAPHFILTER_INFO *Info, GRAPHFILTER_PARAM *Param ) ;			// 画像のフィルター付き転送を行う( 可変引数情報付き )
+//extern int	GraphFilter_D3D11_RectBltBase_PF(     GRAPHFILTER_INFO *Info, GRAPHFILTER_PARAM *Param ) ;			// ‰?‘????t?B???^?[?t??“]‘????s??( ‰??????”?????t?? )
 
 extern int	GraphFilter_D3D11_RectBltBase_Timing0_PF( GRAPHFILTER_INFO *Info, GRAPHFILTER_PARAM *Param ) ;
 extern int	GraphFilter_D3D11_RectBltBase_Timing1_PF( void ) ;

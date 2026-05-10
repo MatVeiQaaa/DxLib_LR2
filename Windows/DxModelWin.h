@@ -1,6 +1,6 @@
 // -------------------------------------------------------------------------------
 // 
-// 		ＤＸライブラリ		WindowsOS用モデルデータ制御プログラムヘッダファイル
+// 		?c?w?‰?C?u?‰??		WindowsOS?p???f???f?[?^?§???v???O?‰???w?b?_?t?@?C??
 // 
 // 				Ver 3.24f
 // 
@@ -9,12 +9,12 @@
 #ifndef DX_MODELWIN_H
 #define DX_MODELWIN_H
 
-// インクルード ------------------------------------------------------------------
+// ?C?“?N???[?h ------------------------------------------------------------------
 #include "../DxCompileConfig.h"
 
 #ifndef DX_NON_MODEL
 
-#include "../DxLib.h"
+#include <DxLib.h>
 #include "../DxModel.h"
 #include "DxModelD3D9.h"
 #include "DxModelD3D11.h"
@@ -26,58 +26,58 @@ namespace DxLib
 
 #endif // DX_NON_NAMESPACE
 
-// マクロ定義 --------------------------------------------------------------------
+// ?}?N??’??` --------------------------------------------------------------------
 
-// 構造体定義 --------------------------------------------------------------------
+// ?\‘?‘?’??` --------------------------------------------------------------------
 
-// Windows用 頂点バッファ環境依存情報
+// Windows?p ’?“_?o?b?t?@??????‘¶????
 struct MV1_VERTEXBUFFER_PF
 {
 	union
 	{
 		int									Dummy ;
 #ifndef DX_NON_DIRECT3D11
-		MV1_VERTEXBUFFER_DIRECT3D11			D3D11 ;		// Direct3D11用頂点バッファ情報
+		MV1_VERTEXBUFFER_DIRECT3D11			D3D11 ;		// Direct3D11?p’?“_?o?b?t?@????
 #endif // DX_NON_DIRECT3D11
 #ifndef DX_NON_DIRECT3D9
-		MV1_VERTEXBUFFER_DIRECT3D9			D3D9 ;		// Direct3D9用頂点バッファ情報
+		MV1_VERTEXBUFFER_DIRECT3D9			D3D9 ;		// Direct3D9?p’?“_?o?b?t?@????
 #endif // DX_NON_DIRECT3D9
 	} ;
 } ;
 
-// Windows用 トライアングルリスト環境依存情報
+// Windows?p ?g?‰?C?A?“?O?????X?g??????‘¶????
 struct MV1_TRIANGLE_LIST_PF
 {
 	union
 	{
 		int									Dummy ;
 #ifndef DX_NON_DIRECT3D11
-		MV1_TRIANGLE_LIST_DIRECT3D11		D3D11 ;		// Direct3D11用トライアングルリスト情報
+		MV1_TRIANGLE_LIST_DIRECT3D11		D3D11 ;		// Direct3D11?p?g?‰?C?A?“?O?????X?g????
 #endif // DX_NON_DIRECT3D11
 #ifndef DX_NON_DIRECT3D9
-		MV1_TRIANGLE_LIST_DIRECT3D9			D3D9 ;		// Direct3D9用トライアングルリスト情報
+		MV1_TRIANGLE_LIST_DIRECT3D9			D3D9 ;		// Direct3D9?p?g?‰?C?A?“?O?????X?g????
 #endif // DX_NON_DIRECT3D9
 	} ;
 } ;
 
-// Windows用 トライアングルリスト基データ環境依存情報
+// Windows?p ?g?‰?C?A?“?O?????X?g???f?[?^??????‘¶????
 struct MV1_TRIANGLE_LIST_BASE_PF
 {
 	union
 	{
 		int									Dummy ;
 #ifndef DX_NON_DIRECT3D11
-		MV1_TRIANGLE_LIST_BASE_DIRECT3D11	D3D11 ;		// Direct3D11用トライアングルリスト基データ情報
+		MV1_TRIANGLE_LIST_BASE_DIRECT3D11	D3D11 ;		// Direct3D11?p?g?‰?C?A?“?O?????X?g???f?[?^????
 #endif // DX_NON_DIRECT3D11
 #ifndef DX_NON_DIRECT3D9
-		MV1_TRIANGLE_LIST_BASE_DIRECT3D9	D3D9 ;		// Direct3D9用トライアングルリスト基データ情報
+		MV1_TRIANGLE_LIST_BASE_DIRECT3D9	D3D9 ;		// Direct3D9?p?g?‰?C?A?“?O?????X?g???f?[?^????
 #endif // DX_NON_DIRECT3D9
 	} ;
 } ;
 
-// 内部大域変数宣言 --------------------------------------------------------------
+// “??”‘??????”???? --------------------------------------------------------------
 
-// 関数プロトタイプ宣言-----------------------------------------------------------
+// ???”?v???g?^?C?v????-----------------------------------------------------------
 
 #ifndef DX_NON_NAMESPACE
 

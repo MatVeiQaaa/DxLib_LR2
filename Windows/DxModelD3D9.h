@@ -1,6 +1,6 @@
 // -------------------------------------------------------------------------------
 // 
-// 		ＤＸライブラリ		モデルデータ制御プログラム( Direct3D9 )ヘッダファイル
+// 		?c?w?‰?C?u?‰??		???f???f?[?^?§???v???O?‰??( Direct3D9 )?w?b?_?t?@?C??
 // 
 // 				Ver 3.24f
 // 
@@ -13,12 +13,12 @@
 
 #ifndef DX_NON_DIRECT3D9
 
-// インクルード ------------------------------------------------------------------
+// ?C?“?N???[?h ------------------------------------------------------------------
 
 #ifndef DX_NON_MODEL
 
 #include "DxDirectX.h"
-#include "../DxLib.h"
+#include <DxLib.h>
 #include "../DxModel.h"
 
 #ifndef DX_NON_NAMESPACE
@@ -28,137 +28,137 @@ namespace DxLib
 
 #endif // DX_NON_NAMESPACE
 
-// マクロ定義 --------------------------------------------------------------------
+// ?}?N??’??` --------------------------------------------------------------------
 
-// 構造体定義 --------------------------------------------------------------------
+// ?\‘?‘?’??` --------------------------------------------------------------------
 
-// 剛体メッシュタイプ頂点構造体
+// ??‘????b?V?…?^?C?v’?“_?\‘?‘?
 struct MV1_VERTEX_SIMPLE_D3D9
 {
-	VECTOR					Position ;							// 座標
-	VECTOR					Normal ;							// 法線
-	COLOR_U8				DiffuseColor ;						// ディフューズ色
-	COLOR_U8				SpecularColor ;						// スペキュラー色
-	float					UVs[ 3 ][ 4 ] ;						// テクスチャ座標
+	VECTOR					Position ;							// ???W
+	VECTOR					Normal ;							// ?@??
+	COLOR_U8				DiffuseColor ;						// ?f?B?t?…?[?Y?F
+	COLOR_U8				SpecularColor ;						// ?X?y?L?…?‰?[?F
+	float					UVs[ 3 ][ 4 ] ;						// ?e?N?X?`?????W
 } ;
 
-// 剛体メッシュタイプ輪郭線用頂点構造体
+// ??‘????b?V?…?^?C?v???s???p’?“_?\‘?‘?
 struct MV1_VERTEX_SIMPLE_TOL_D3D9
 {
-	VECTOR					Position ;							// 座標
-	COLOR_U8				DiffuseColor ;						// ディフューズ色
+	VECTOR					Position ;							// ???W
+	COLOR_U8				DiffuseColor ;						// ?f?B?t?…?[?Y?F
 } ;
 
-// 剛体メッシュタイプバンプマップ用頂点構造体
+// ??‘????b?V?…?^?C?v?o?“?v?}?b?v?p’?“_?\‘?‘?
 struct MV1_VERTEX_SIMPLE_BUMP_D3D9
 {
-	VECTOR					Position ;							// 座標
-	VECTOR					Tangent ;							// 頂点の接線
-	VECTOR					Binormal ;							// 頂点の従法線
-	VECTOR					Normal ;							// 法線
-	COLOR_U8				DiffuseColor ;						// ディフューズ色
-	COLOR_U8				SpecularColor ;						// スペキュラー色
-	float					UVs[ 1 ][ 4 ] ;						// テクスチャ座標
+	VECTOR					Position ;							// ???W
+	VECTOR					Tangent ;							// ’?“_??????
+	VECTOR					Binormal ;							// ’?“_???]?@??
+	VECTOR					Normal ;							// ?@??
+	COLOR_U8				DiffuseColor ;						// ?f?B?t?…?[?Y?F
+	COLOR_U8				SpecularColor ;						// ?X?y?L?…?‰?[?F
+	float					UVs[ 1 ][ 4 ] ;						// ?e?N?X?`?????W
 } ;
 
-// スキンメッシュタイプ頂点構造体(関連ボーン４つ以内)
+// ?X?L?“???b?V?…?^?C?v’?“_?\‘?‘?(???A?{?[?“?S????“?)
 struct MV1_VERTEX_SKIN_B4_D3D9
 {
-	VECTOR					Position ;							// 座標
-	unsigned char			MatrixIndex[ 4 ] ;					// 行列インデックス( 行列番号×４ )
-	float					MatrixWeight[ 4 ] ;					// 行列ウエイト
-	VECTOR					Normal ;							// 法線
-	COLOR_U8				DiffuseColor ;						// ディフューズ色
-	COLOR_U8				SpecularColor ;						// スペキュラー色
-	float					UVs[ 1 ][ 4 ] ;						// テクスチャ座標
+	VECTOR					Position ;							// ???W
+	unsigned char			MatrixIndex[ 4 ] ;					// ?s???C?“?f?b?N?X( ?s??”??†?~?S )
+	float					MatrixWeight[ 4 ] ;					// ?s???E?G?C?g
+	VECTOR					Normal ;							// ?@??
+	COLOR_U8				DiffuseColor ;						// ?f?B?t?…?[?Y?F
+	COLOR_U8				SpecularColor ;						// ?X?y?L?…?‰?[?F
+	float					UVs[ 1 ][ 4 ] ;						// ?e?N?X?`?????W
 } ;
 
-// スキンメッシュタイプバンプマップ用頂点構造体(関連ボーン４つ以内)
+// ?X?L?“???b?V?…?^?C?v?o?“?v?}?b?v?p’?“_?\‘?‘?(???A?{?[?“?S????“?)
 struct MV1_VERTEX_SKIN_B4_BUMP_D3D9
 {
-	VECTOR					Position ;							// 座標
-	unsigned char			MatrixIndex[ 4 ] ;					// 行列インデックス( 行列番号×４ )
-	float					MatrixWeight[ 4 ] ;					// 行列ウエイト
-	VECTOR					Tangent ;							// 頂点の接線
-	VECTOR					Binormal ;							// 頂点の従法線
-	VECTOR					Normal ;							// 法線
-	COLOR_U8				DiffuseColor ;						// ディフューズ色
-	COLOR_U8				SpecularColor ;						// スペキュラー色
-	float					UVs[ 1 ][ 4 ] ;						// テクスチャ座標
+	VECTOR					Position ;							// ???W
+	unsigned char			MatrixIndex[ 4 ] ;					// ?s???C?“?f?b?N?X( ?s??”??†?~?S )
+	float					MatrixWeight[ 4 ] ;					// ?s???E?G?C?g
+	VECTOR					Tangent ;							// ’?“_??????
+	VECTOR					Binormal ;							// ’?“_???]?@??
+	VECTOR					Normal ;							// ?@??
+	COLOR_U8				DiffuseColor ;						// ?f?B?t?…?[?Y?F
+	COLOR_U8				SpecularColor ;						// ?X?y?L?…?‰?[?F
+	float					UVs[ 1 ][ 4 ] ;						// ?e?N?X?`?????W
 } ;
 
-// スキンメッシュタイプ頂点構造体(関連ボーン８つ以内)
+// ?X?L?“???b?V?…?^?C?v’?“_?\‘?‘?(???A?{?[?“?W????“?)
 struct MV1_VERTEX_SKIN_B8_D3D9
 {
-	VECTOR					Position ;							// 座標
-	unsigned char			MatrixIndex[ 8 ] ;					// 行列インデックス( 行列番号×４ )
-	float					MatrixWeight[ 8 ] ;					// 行列ウエイト
-	VECTOR					Normal ;							// 法線
-	COLOR_U8				DiffuseColor ;						// ディフューズ色
-	COLOR_U8				SpecularColor ;						// スペキュラー色
-	float					UVs[ 1 ][ 4 ] ;						// テクスチャ座標
+	VECTOR					Position ;							// ???W
+	unsigned char			MatrixIndex[ 8 ] ;					// ?s???C?“?f?b?N?X( ?s??”??†?~?S )
+	float					MatrixWeight[ 8 ] ;					// ?s???E?G?C?g
+	VECTOR					Normal ;							// ?@??
+	COLOR_U8				DiffuseColor ;						// ?f?B?t?…?[?Y?F
+	COLOR_U8				SpecularColor ;						// ?X?y?L?…?‰?[?F
+	float					UVs[ 1 ][ 4 ] ;						// ?e?N?X?`?????W
 } ;
 
-// スキンメッシュタイプバンプマップ用頂点構造体(関連ボーン８つ以内)
+// ?X?L?“???b?V?…?^?C?v?o?“?v?}?b?v?p’?“_?\‘?‘?(???A?{?[?“?W????“?)
 struct MV1_VERTEX_SKIN_B8_BUMP_D3D9
 {
-	VECTOR					Position ;							// 座標
-	unsigned char			MatrixIndex[ 8 ] ;					// 行列インデックス( 行列番号×８ )
-	float					MatrixWeight[ 8 ] ;					// 行列ウエイト
-	VECTOR					Tangent ;							// 頂点の接線
-	VECTOR					Binormal ;							// 頂点の従法線
-	VECTOR					Normal ;							// 法線
-	COLOR_U8				DiffuseColor ;						// ディフューズ色
-	COLOR_U8				SpecularColor ;						// スペキュラー色
-	float					UVs[ 1 ][ 4 ] ;						// テクスチャ座標
+	VECTOR					Position ;							// ???W
+	unsigned char			MatrixIndex[ 8 ] ;					// ?s???C?“?f?b?N?X( ?s??”??†?~?W )
+	float					MatrixWeight[ 8 ] ;					// ?s???E?G?C?g
+	VECTOR					Tangent ;							// ’?“_??????
+	VECTOR					Binormal ;							// ’?“_???]?@??
+	VECTOR					Normal ;							// ?@??
+	COLOR_U8				DiffuseColor ;						// ?f?B?t?…?[?Y?F
+	COLOR_U8				SpecularColor ;						// ?X?y?L?…?‰?[?F
+	float					UVs[ 1 ][ 4 ] ;						// ?e?N?X?`?????W
 } ;
 
-// Direct3D9用 モデルデータ管理用構造体
+// Direct3D9?p ???f???f?[?^?????p?\‘?‘?
 struct MV1_MODEL_MANAGE_DIRECT3D9
 {
 	int Dummy ;
 } ;
 
-// Direct3D9用頂点バッファ情報
+// Direct3D9?p’?“_?o?b?t?@????
 struct MV1_VERTEXBUFFER_DIRECT3D9
 {
-	DWORD						FVF ;							// 頂点バッファ作成時に使用したＦＶＦ
-	D_IDirect3DVertexBuffer9	*VertexBuffer ;					// 頂点バッファ
-	D_IDirect3DIndexBuffer9		*IndexBuffer ;					// インデックスバッファ
+	DWORD						FVF ;							// ’?“_?o?b?t?@?????????g?p?????e?u?e
+	D_IDirect3DVertexBuffer9	*VertexBuffer ;					// ’?“_?o?b?t?@
+	D_IDirect3DIndexBuffer9		*IndexBuffer ;					// ?C?“?f?b?N?X?o?b?t?@
 } ;
 
-// Direct3D9用トライアングルリスト基データ情報
+// Direct3D9?p?g?‰?C?A?“?O?????X?g???f?[?^????
 struct MV1_TRIANGLE_LIST_BASE_DIRECT3D9
 {
-	MV1_VERTEX_SIMPLE_D3D9		*TempSimpleVertex ;					// シェーダーを使用せずに描画する場合の頂点データ
-	MV1_VERTEX_SIMPLE_TOL_D3D9	*TempToonOutLineSimpleVertex ;		// シェーダーを使用せずに描画する場合のトゥーンの輪郭線描画用頂点データ
+	MV1_VERTEX_SIMPLE_D3D9		*TempSimpleVertex ;					// ?V?F?[?_?[???g?p???????`‰????????‡??’?“_?f?[?^
+	MV1_VERTEX_SIMPLE_TOL_D3D9	*TempToonOutLineSimpleVertex ;		// ?V?F?[?_?[???g?p???????`‰????????‡???g?D?[?“?????s???`‰??p’?“_?f?[?^
 } ;
 
-// Direct3D9用トライアングルリスト情報
+// Direct3D9?p?g?‰?C?A?“?O?????X?g????
 struct MV1_TRIANGLE_LIST_DIRECT3D9
 {
-	D_IDirect3DVertexBuffer9	*VertexBuffer ;					// 頂点バッファ
+	D_IDirect3DVertexBuffer9	*VertexBuffer ;					// ’?“_?o?b?t?@
 } ;
 
-// 内部大域変数宣言 --------------------------------------------------------------
+// “??”‘??????”???? --------------------------------------------------------------
 
 extern MV1_MODEL_MANAGE_DIRECT3D9 MV1Man_D3D9 ;
 
-// 関数プロトタイプ宣言-----------------------------------------------------------
+// ???”?v???g?^?C?v????-----------------------------------------------------------
 
-// 環境依存関数
-extern	int				MV1_D3D9_Terminate_PF( void ) ;																// モデル機能の後始末
-extern	int				MV1_D3D9_TerminateModelBaseHandle_PF( MV1_MODEL_BASE *ModelBase ) ;							// モデルデータハンドルの後始末
-extern	int				MV1_D3D9_TerminateTriangleListBaseTempBuffer_PF( MV1_TRIANGLE_LIST_BASE *MBTList ) ;				// トライアングルリストの一時処理用のバッファを開放する
-extern	void			MV1_D3D9_SetupPackDrawInfo_PF( MV1_MODEL_BASE *ModelBase ) ;								// 同時複数描画関係の情報をセットアップする
-extern	int				MV1_D3D9_SetupVertexBufferBase_PF( int MV1ModelBaseHandle, int DuplicateNum = 1, int ASyncThread = FALSE ) ;	// モデル基データの頂点バッファのセットアップをする( -1:エラー )
-extern	int				MV1_D3D9_SetupVertexBuffer_PF( int MHandle, int ASyncThread = FALSE ) ;						// モデルデータの頂点バッファのセットアップをする( -1:エラー )
-extern	int				MV1_D3D9_TerminateVertexBufferBase_PF( int MV1ModelBaseHandle ) ;							// 頂点バッファの後始末をする( -1:エラー )
-extern	int				MV1_D3D9_TerminateVertexBuffer_PF( int MV1ModelHandle ) ;									// 頂点バッファの後始末をする( -1:エラー )
-extern	int				MV1_D3D9_SetupShapeVertex_PF( int MHandle ) ;												// シェイプデータのセットアップをする
-extern	int				MV1_D3D9_BeginRender_PF( MV1_MODEL *Model ) ;												// ３Ｄモデルのレンダリングの準備を行う
-extern	int				MV1_D3D9_EndRender_PF( void ) ;																// ３Ｄモデルのレンダリングの後始末を行う
-extern	void			MV1_D3D9_DrawMesh_PF( MV1_MESH *Mesh, int TriangleListIndex = -1 ) ;						// メッシュ描画部分を抜き出したもの
+// ??????‘¶???”
+extern	int				MV1_D3D9_Terminate_PF( void ) ;																// ???f???@”\?????n??
+extern	int				MV1_D3D9_TerminateModelBaseHandle_PF( MV1_MODEL_BASE *ModelBase ) ;							// ???f???f?[?^?n?“?h???????n??
+extern	int				MV1_D3D9_TerminateTriangleListBaseTempBuffer_PF( MV1_TRIANGLE_LIST_BASE *MBTList ) ;				// ?g?‰?C?A?“?O?????X?g???????????p???o?b?t?@???J??????
+extern	void			MV1_D3D9_SetupPackDrawInfo_PF( MV1_MODEL_BASE *ModelBase ) ;								// “??????”?`‰????W?????????Z?b?g?A?b?v????
+extern	int				MV1_D3D9_SetupVertexBufferBase_PF( int MV1ModelBaseHandle, int DuplicateNum = 1, int ASyncThread = FALSE ) ;	// ???f?????f?[?^??’?“_?o?b?t?@???Z?b?g?A?b?v??????( -1:?G?‰?[ )
+extern	int				MV1_D3D9_SetupVertexBuffer_PF( int MHandle, int ASyncThread = FALSE ) ;						// ???f???f?[?^??’?“_?o?b?t?@???Z?b?g?A?b?v??????( -1:?G?‰?[ )
+extern	int				MV1_D3D9_TerminateVertexBufferBase_PF( int MV1ModelBaseHandle ) ;							// ’?“_?o?b?t?@?????n????????( -1:?G?‰?[ )
+extern	int				MV1_D3D9_TerminateVertexBuffer_PF( int MV1ModelHandle ) ;									// ’?“_?o?b?t?@?????n????????( -1:?G?‰?[ )
+extern	int				MV1_D3D9_SetupShapeVertex_PF( int MHandle ) ;												// ?V?F?C?v?f?[?^???Z?b?g?A?b?v??????
+extern	int				MV1_D3D9_BeginRender_PF( MV1_MODEL *Model ) ;												// ?R?c???f???????“?_???“?O????”????s??
+extern	int				MV1_D3D9_EndRender_PF( void ) ;																// ?R?c???f???????“?_???“?O?????n?????s??
+extern	void			MV1_D3D9_DrawMesh_PF( MV1_MESH *Mesh, int TriangleListIndex = -1 ) ;						// ???b?V?…?`‰??”????”????o????????
 
 #ifndef DX_NON_NAMESPACE
 
