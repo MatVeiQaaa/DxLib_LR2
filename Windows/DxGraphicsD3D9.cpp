@@ -17151,7 +17151,7 @@ extern	void	FASTCALL Graphics_D3D9_DrawPreparation( int ParamFlag )
 // ?r?M??g?V?[??g???s??
 extern void Graphics_D3D9_BeginScene( void )
 {
-	if( Direct3D9_IsValid() == 0 || GD3D9.Device.DrawInfo.BeginSceneFlag == TRUE ) return ;
+	if( Direct3DDevice9_IsValid() == 0 || GD3D9.Device.DrawInfo.BeginSceneFlag == TRUE ) return ;
 
 	Direct3DDevice9_BeginScene() ;
 	GD3D9.Device.DrawInfo.BeginSceneFlag = TRUE ;
@@ -17164,7 +17164,7 @@ extern void Graphics_D3D9_BeginScene( void )
 // ?G??g?h?V?[??g???s??
 extern void Graphics_D3D9_EndScene( void )
 {
-	if( Direct3D9_IsValid() == 0 || GD3D9.Device.DrawInfo.BeginSceneFlag == FALSE ) return ;
+	if( Direct3DDevice9_IsValid() == 0 || GD3D9.Device.DrawInfo.BeginSceneFlag == FALSE ) return ;
 
 	Direct3DDevice9_EndScene() ;
 	GD3D9.Device.DrawInfo.BeginSceneFlag = FALSE ;
@@ -27093,13 +27093,8 @@ extern	int		Graphics_Hardware_D3D9_WaitVSync_PF( int SyncNum )
 extern	int		Graphics_Hardware_D3D9_ScreenFlipBase_PF( void )
 {
 	// ?g??????????????t???b?v???L????g?Z??????
-	if(WinData.WindowMinimizeFlag == TRUE &&
-		(WinData.DrawBackGraphFlag == FALSE || 
-		WinData.PauseGraph.GraphData == NULL) )
-	{
-		return 0 ;
-	}
-
+	if (Direct3DDevice9_IsValid() == 0) return 0;
+	
 	// ?t???X?N???[??g???[?h?????t???X?N???[??g????e??gx???[?h?? DX_FSRESOLUTIONMODE_NATIVE ???????????????
 	// GSYS.Screen.ValidGraphDisplayArea ?? TRUE ??????????T?u?o?b?N?o?b?t?@???Z?b?g?A?b?v
 	//
@@ -28884,11 +28879,6 @@ extern	int		Graphics_Hardware_D3D9_BltBmpOrBaseImageToGraph3_PF(
 	if( Direct3DDevice9_IsValid() == 0 )
 	{
 		return -1 ;
-	}
-
-	if (!SUCCEEDED(GAPIWin.Direct3DDevice9Object->TestCooperativeLevel()))
-	{
-		return 0;
 	}
 
 	// ?`????e??@?????????`?????N???`???

@@ -5535,7 +5535,6 @@ static int Direct3DDevice9_ScalingSubBackbuffer( const RECT *SubBackBufferSrcRec
 
 extern int Direct3DDevice9_Present( void )
 {
-	if (!SUCCEEDED(GAPIWin.Direct3DDevice9Object->TestCooperativeLevel())) return 0;
 	RECT WindRect ;
 	RECT ScreenRect ;
 	int  DrawScreenWidth ;
@@ -6002,7 +6001,10 @@ extern int Direct3DDevice9_BltRectBackScreenToWindow( HWND Window, RECT BackScre
 
 extern int Direct3DDevice9_IsValid( void )
 {
-	return GAPIWin.Direct3DDevice9Object != NULL ? 1 : 0 ;
+	if (GAPIWin.Direct3DDevice9Object == NULL) return 0 ;
+	if (GAPIWin.Direct3DDevice9Object->TestCooperativeLevel() != D_D3D_OK) return 0;
+	if (WinData.ActiveFlag == 0 && WinData.WindowModeFlag == FALSE && NS_GetUseFullScreenResolutionMode() != DX_FSRESOLUTIONMODE_BORDERLESS_WINDOW) return 0;
+	return 1;
 }
 
 extern void *Direct3DDevice9_GetObject( void )
